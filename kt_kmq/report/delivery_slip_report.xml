@@ -1,0 +1,54 @@
+<odoo>
+    <template id="report_delivery_document_inherit_kt" inherit_id="stock.report_delivery_document">
+	<xpath expr="//div[@name='customer_address']" position="before">
+		<div class="col-xs-4 pull-left">
+		    <t t-if="o.sale_order_id.alternate_do">
+                            <br/><br/><br/>
+                            <strong>Delivery Address:</strong><br/>
+                             <span t-field="o.sale_order_id.alt_street"/>
+                             <span t-field="o.sale_order_id.alt_street2"/>
+                             <span t-field="o.sale_order_id.alt_city"/>
+                             <span t-field="o.sale_order_id.alt_zip"/>
+                             <span t-field="o.sale_order_id.alt_state_id.name"/>
+                             <span t-field="o.sale_order_id.alt_country_id.name"/>
+                    
+        	     </t>
+	         </div>
+	</xpath>
+	<xpath expr="//div[@name='customer_address']/div" position="before">
+	    <br/><br/><br/>
+	</xpath>
+	<!--<xpath expr="//td[@name='lot_qty']" position="replace">
+	    <td name="lot_qty">
+                <span t-esc="int(packlot.qty)"/>
+            </td>
+	</xpath>-->
+        <xpath expr="//div[@class='page']" position="inside">
+            <p t-if="o.description">
+                <strong>Description :</strong><br/>
+                <span t-field="o.description"/>
+            </p>
+        </xpath>
+		
+    </template>
+
+
+    <report id="stock.action_report_picking" 
+	    string="Picking Operations"
+            model="stock.picking"
+            report_type="qweb-pdf"
+            name="stock.report_picking"
+            file="stock.report_picking_operations"	    
+	    menu="True"
+	/>
+
+	<report id="stock.action_report_delivery"
+            string="Delivery Slip"
+            model="stock.picking"
+            report_type="qweb-pdf"
+            name="stock.report_deliveryslip"
+            file="stock.report_deliveryslip"
+	    menu="False"
+        />
+</odoo>
+

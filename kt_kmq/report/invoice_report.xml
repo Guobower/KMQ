@@ -1,0 +1,129 @@
+<odoo>
+
+     <template id="report_invoice_document_inherit" inherit_id="account.report_invoice_document">
+        <!--<xpath expr="//table" position="replace">
+                <table></table>
+        </xpath>-->
+        <xpath expr="//table" position="replace">
+            <table class="table table-condensed" style="width:100%;margin-bottom:-0.1cm;">
+                    <thead>
+                        <tr>
+                            <th style="width:40%">Description</th>
+                            <th style="width:15%">Quantity</th>
+                            <th style="width:15%">Unit Price</th>
+                            <th style="width:10%">Taxes</th>
+                            <th style="width:20%" >Tax Excluded Price</th>
+                        </tr>
+                   </thead>
+		   <!-- Jagadeesh sep 06 start -->
+		   <tbody>
+                        <tr t-foreach="o.invoice_line_ids" t-as="line">
+                            <td style="width:40%"><span t-esc="line.name"/></td>
+                            <td style="width:15%"><span t-esc="line.quantity"/> <span t-esc="line.uom_id.name"/></td>
+                            <td style="width:15%"><span t-esc="line.price_unit"/></td>
+                            <td style="width:10%"><span t-esc="', '.join(map(lambda x: (x.description or x.name), line.invoice_line_tax_ids))"/></td>
+                            <td style="width:20%" class="text-right"><span t-esc="line.price_subtotal" t-options='{"widget": "monetary", "display_currency": o.currency_id}'/></td>
+                        </tr>
+                   </tbody>
+		   <!-- Jagadeesh sep 06 end -->		   		
+            </table><br/><br/>
+            <!--<t t-foreach="o.invoice_line_ids" t-as="line">
+                <table class="table table-condensed" style="width:100%">
+                   <tbody>
+                       <tr>
+                            <td style="width:40%"><span t-esc="line.name"/></td>
+                            <td style="width:15%"><span t-esc="line.quantity"/> <span t-esc="line.uom_id.name"/></td>
+                            <td style="width:15%"><span t-esc="line.price_unit"/></td>
+                            <td style="width:10%"><span t-esc="', '.join(map(lambda x: (x.description or x.name), line.invoice_line_tax_ids))"/></td>
+                            <td style="width:20%"><span t-esc="line.price_subtotal" t-options='{"widget": "monetary", "display_currency": o.currency_id}'/></td>
+                        </tr>
+                    </tbody>
+                </table>
+                <div class="col-xs-11 pull-right" style="margin-top:-20px">
+                <table class="table table-condensed" style="font-style: italic;font-size:11.5px">
+                    <thead>
+                        <tr>
+                            <th class="text-left">Branding Location</th>
+                            <th class="text-left">Branding Method</th>
+                            <th class="text-left">Colours</th>
+                            <th class="text-left">Sizes</th>
+                            <th class="text-right">Setup Cost</th>
+                            <th class="text-right">Cost/item</th>
+                            <th class="text-right">Total Cost</th>
+                        </tr>
+                   </thead>
+                   <tbody>
+                        <tr t-foreach="o.get_product_branding_items(line)" t-as="brand">
+                            <td class="text-left"><span t-esc="brand.branding_location.name"/></td>
+                            <td class="text-left"><span t-esc="brand.branding_method.name"/></td>
+                            <td class="text-left"><span t-esc="brand.color_variant.name"/></td>
+                            <td class="text-left"><span t-esc="brand.size_variant.name"/></td>
+                            <td class="text-right"><span t-esc="brand.setup_cost"/></td>
+                            <td class="text-right"><span t-esc="brand.item_cost"/></td>
+                            <td class="text-right"><span t-esc="brand.total_cost"/></td>
+                        </tr>
+                   </tbody>
+                </table>
+                </div>
+                <div style="clear:both"/>
+            </t>-->
+        </xpath>
+	<xpath expr="//div[@class='page']" position="inside">
+	    <p t-if="o.description">
+		<strong>Description :</strong><br/>
+		<span t-field="o.description"/>
+	    </p>
+	</xpath>
+    </template>
+<template id="sale.report_invoice_document_inherit_sale" inherit_id="account.report_invoice_document">
+        <xpath expr="//div[@name='invoice_address']" position="attributes">
+            <attribute name="groups">!sale.group_delivery_invoice_address</attribute>
+        </xpath>
+        <xpath expr="//div[@name='invoice_address']" position="before">
+	     <div>
+	     <!--<div class="col-xs-6"> 
+	     <t t-if="o.sale_order_id.alternate_do">
+                            <br/><br/><br/>
+                            <strong>Alternate Delivery Address:</strong><br/>
+                             <span t-field="o.sale_order_id.alt_street"/>
+                             <span t-field="o.sale_order_id.alt_street2"/>
+                             <span t-field="o.sale_order_id.alt_city"/>
+                             <span t-field="o.sale_order_id.alt_zip"/>
+                             <span t-field="o.sale_order_id.alt_state_id.name"/>
+                             <span t-field="o.sale_order_id.alt_country_id.name"/>
+                    
+             </t>
+	     </div>-->
+
+            <div style="float:left; margin-left:16px;" groups="sale.group_delivery_invoice_address">
+		<br/><br/><br/>
+                <strong t-if="o.partner_shipping_id == o.partner_id">Invoicing and shipping address:</strong>
+                <strong t-if="o.partner_shipping_id != o.partner_id">Invoicing address:</strong>
+                <div t-field="o.partner_id"
+                    t-options='{"widget": "contact", "fields": ["address", "name"], "no_marker": True}'/>
+                <span t-if="o.partner_id.parent_id"><span t-if="o.partner_id.parent_id.vat_no">VAT : <span t-field="o.partner_id.parent_id.vat_no"/></span></span>
+                <div t-if="o.partner_shipping_id != o.partner_id" class="mt8">
+                    <strong>Shipping address:</strong>
+                    <div t-field="o.partner_shipping_id"
+                        t-options='{"widget": "contact", "fields": ["address", "name"], "no_marker": True}'/>
+                    <span t-if="o.partner_id.parent_id"><span t-if="o.partner_id.parent_id.vat_no">VAT : <span t-field="o.partner_id.parent_id.vat_no"/></span></span>
+                </div>
+            </div>
+	    <div style="float:right">
+             <t t-if="o.sale_order_id.alternate_do">
+                            <br/><br/><br/>
+                            <strong>Alternate Delivery Address:</strong><br/>
+                             <span t-field="o.sale_order_id.alt_street"/>
+                             <span t-field="o.sale_order_id.alt_street2"/>
+                             <span t-field="o.sale_order_id.alt_city"/>
+                             <span t-field="o.sale_order_id.alt_zip"/>
+                             <span t-field="o.sale_order_id.alt_state_id.name"/>
+                             <span t-field="o.sale_order_id.alt_country_id.name"/>
+
+             </t>
+             </div>
+	     <div style="clear:both;"/>
+	    </div>
+        </xpath>
+    </template>
+</odoo>

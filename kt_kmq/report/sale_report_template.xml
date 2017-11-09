@@ -1,0 +1,187 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <template id="external_layout_header_inherit_kt" inherit_id="report.external_layout_header">
+	<!--<xpath expr="div[@class='header']" position="inside">
+	    <div class="row"><br/><br/><br/></div>
+
+	</xpath>-->
+	<xpath expr="div[@class='header']/div[3]/div" position="replace">
+	    <div class="col-xs-6" name="company_address">
+		
+                <span t-field="company.partner_id"
+                    t-field-options='{"widget": "contact", "fields": ["address","name"], "no_marker": true}' 
+                    style="border-bottom: 1px solid black; display:inline-block;font-size:12px;"/><br/>
+	        VAT : 4680202381 <br/>
+		Export Code : 20620341 <br/>
+		<span style="border-bottom: 1px solid black; display:inline-block;font-size:12px;"/>
+
+            </div>	
+	</xpath>
+    </template>
+
+    <template id="report_saleorder_document_inherit" inherit_id="sale.report_saleorder_document">
+	<!--<xpath expr="//div[name='total']" position="before">-->
+	<xpath expr="//div[@class='page']//div[@class='row'][1]" position="replace">
+	     <div class="row">                
+		<div class="col-xs-6">                   
+                  <t t-if="not doc.alternate_do">
+                   <!--<table>
+                        <tr><td><![CDATA[&nbsp;]]></td></tr><tr><td><![CDATA[&nbsp;]]></td></tr><tr><td><![CDATA[&nbsp;]]></td></tr><tr><td><![CDATA[&nbsp;]]></td></tr>
+                  </table>-->
+		    <br/><br/><br/>
+                    <strong t-if="doc.partner_shipping_id == doc.partner_invoice_id">Invoicing and shipping address:</strong>
+                    <strong t-if="doc.partner_shipping_id != doc.partner_invoice_id">Invoicing address:</strong>
+                    <div t-field="doc.partner_invoice_id" t-options="{&quot;widget&quot;: &quot;contact&quot;, &quot;fields&quot;: [&quot;address&quot;, &quot;name&quot;, &quot;phone&quot;, &quot;fax&quot;], &quot;no_marker&quot;: True, &quot;phone_icons&quot;: True}"/>
+		<span t-if="doc.partner_id.parent_id"><span t-if="doc.partner_id.parent_id.vat_no">VAT: <span t-field="doc.partner_id.parent_id.vat_no"/></span></span>
+
+                    <div t-if="doc.partner_shipping_id != doc.partner_invoice_id" class="mt8">
+                        <strong>Shipping address:</strong>
+                        <div t-field="doc.partner_shipping_id" t-options="{&quot;widget&quot;: &quot;contact&quot;, &quot;fields&quot;: [&quot;address&quot;, &quot;name&quot;, &quot;phone&quot;, &quot;fax&quot;], &quot;no_marker&quot;: True, &quot;phone_icons&quot;: True}"/>
+                        <span t-if="doc.partner_id.parent_id"><span t-if="doc.partner_id.parent_id.vat_no">VAT: <span t-field="doc.partner_id.parent_id.vat_no"/></span></span>
+
+                    </div>
+                    </t>
+                    <t t-if="doc.alternate_do">
+                        <!--<table>
+                        <tr><td><![CDATA[&nbsp;]]></td></tr><tr><td><![CDATA[&nbsp;]]></td></tr><tr><td><![CDATA[&nbsp;]]></td></tr><tr><td><![CDATA[&nbsp;]]></td></tr>
+                  </table>-->
+			 <br/><br/><br/>
+                         <strong>Alternate Delivery Address:</strong><br/>
+                             <span t-field="doc.alt_street"/>
+                             <span t-field="doc.alt_street2"/>
+                             <span t-field="doc.alt_city"/>
+                             <span t-field="doc.alt_zip"/>
+                             <span t-field="doc.alt_state_id.name"/>
+                             <span t-field="doc.alt_country_id.name"/>
+                    </t>
+                </div>
+              
+          
+                <div class="col-xs-6">
+                    <!--<table>
+                       <tr><td><![CDATA[&nbsp;]]></td></tr><tr><td><![CDATA[&nbsp;]]></td></tr><tr><td><![CDATA[&nbsp;]]></td></tr><tr><td><![CDATA[&nbsp;]]></td></tr>
+                   </table>-->
+		    <br/><br/><br/>
+		    <t><b>Partner Address :</b></t>
+                    <div t-field="doc.partner_id" t-options="{&quot;widget&quot;: &quot;contact&quot;, &quot;fields&quot;: [&quot;address&quot;, &quot;name&quot;], &quot;no_marker&quot;: True}"/>
+                </div>
+            </div>
+	</xpath>
+
+	<xpath expr="//table" position="replace">
+		<table></table>
+	</xpath>
+
+	<xpath expr="//h2" position="replace"/>
+
+	<xpath expr="//div[@class='row']" position="after">
+	<h2>
+		<!-- Jagadeesh JUN 06 start -->
+		 <!--<span t-if="doc.state not in ['draft','sent','proforma']">Order # </span>
+                <span t-if="doc.state in ['draft','sent']">Quotation # </span>
+                <span t-if="doc.state in ['proforma']">Proforma Invoice # </span>-->
+		<!-- Jagadeesh JUN06 end -->
+		<span t-if="doc.state not in ['draft','sent','sale']">Order # </span>
+                <span t-if="doc.state in ['draft','sent']">Quotation # </span>
+                <span t-if="doc.state in ['sale']">Proforma Invoice # </span>
+		<!-- Jagadeesh JUN06 end -->
+                <span t-field="doc.name"/>
+	</h2>
+	</xpath>
+
+	<xpath expr="//div[@name='total']" position="before">
+	    <table class="table table-condensed" style="width:100%;margin-bottom:-0.1cm;">
+                    <thead>
+                        <tr>
+                            <th style="width:40%">Description</th>
+                            <th style="width:20%">Quantity</th>
+                            <th style="width:15%">Unit Price</th>
+                            <th style="width:10%">Taxes</th>
+                            <th style="width:15%" groups="sale.group_show_price_subtotal">Price</th>
+                        </tr>
+                   </thead>
+	    </table>
+	    <t t-foreach="doc.order_line" t-as="order">
+	        <table class="table table-condensed" style="width:100%">
+		   <tbody>
+		       <tr style="page-break-inside:avoid;">
+			    <td style="width:40%"><span t-esc="order.name"/></td>
+			    <td style="width:20%"><span t-esc="order.product_uom_qty"/> <span t-esc="order.product_uom.name"/></td>
+			    <td style="width:15%"><span t-esc="order.price_unit"/></td>
+			    <td style="width:10%"><span t-esc="order.tax_id.name"/></td>
+			    <td style="width:15%" groups="sale.group_show_price_subtotal"><span t-esc="order.price_subtotal" t-options='{"widget": "monetary", "display_currency": doc.pricelist_id.currency_id}'/></td>
+		   	</tr>
+		    </tbody>
+	        </table>	
+
+		<t t-if="doc.product_branding2_ids and order.add_product_branding and order.product_branding_ids">
+	        <div class="col-xs-11 pull-right" style="margin-top:-20px">
+	        <table class="table table-condensed" style="font-style: italic;font-size:11.5px">
+                    <thead>
+			<tr style="page-break-inside:avoid;">
+                        <!--<tr t-if="order.add_product_branding">-->
+                            <th class="text-left">Branding Location</th>
+                            <th class="text-left">Branding Method</th>
+                            <th class="text-left">Colours</th>
+			    <th class="text-left">Sizes</th>
+			    <th class="text-right">Setup Cost</th>
+			    <th class="text-right">Cost/item</th>	
+			    <th class="text-right">Total Cost</th>
+                        </tr>
+                   </thead>
+		   <tbody>
+			<tr t-foreach="doc.get_product_branding_items(order)" t-as="line" style="page-break-inside:avoid;">
+			    <td class="text-left"><span t-esc="line.branding_location.name"/></td>
+			    <td class="text-left"><span t-esc="line.branding_method.name"/></td>
+			    <td class="text-left"><span t-esc="line.color_variant.name"/></td>
+			    <td class="text-left"><span t-esc="line.size_variant.name"/></td>
+			    <td class="text-right"><span t-esc="'%.2f'%(line.setup_cost)"/></td>
+			    <td class="text-right"><span t-esc="'%.2f'%(line.item_cost)"/></td>
+			    <td class="text-right"><span t-esc="'%.2f'%(line.total_cost)"/></td>
+			</tr>
+		   </tbody>
+	        </table>
+	        </div>
+		</t>
+
+	        <div style="clear:both"/>
+	    </t>
+	</xpath>
+
+	<!--<xpath expr="//div[@name='total']/div/table/tr[1]/t/tr/td[2]" position="replace">
+	    <td class="text-right">
+                                    <span t-esc="doc.amount_tax"/>
+                                </td>
+	</xpath>-->
+	<xpath expr="//div[@name='total']" position="replace">
+	<div class="row" name="total">
+                <div class="col-xs-4 pull-right">
+                    <table class="table table-condensed">
+                        <tr class="border-black">
+                            <td><strong>Total Without Taxes</strong></td>
+                            <td class="text-right">
+                                <span t-field="doc.amount_untaxed"
+                                    t-options='{"widget": "monetary", "display_currency": doc.pricelist_id.currency_id}'/>
+                            </td>
+                        </tr>
+                        <t t-foreach="doc._get_tax_amount_by_group()" t-as="amount_by_group">
+                            <tr>
+                                <td><span t-esc="amount_by_group[0] or 'Taxes'"/></td>
+                                <td class="text-right">
+                                    R <span t-esc="'%.2f'%(doc.amount_tax)"/>
+                                </td>
+                            </tr>
+                        </t>
+                        <tr class="border-black">
+                            <td><strong>Total</strong></td>
+                            <td class="text-right">
+                                <span t-field="doc.amount_total"
+                                    t-options='{"widget": "monetary", "display_currency": doc.pricelist_id.currency_id}'/>
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+	</xpath>
+    </template>
+</odoo>

@@ -1,0 +1,119 @@
+<odoo>
+    <template id="report_picking_inh_it" inherit_id="stock.report_picking">
+	<xpath expr="//div[@class='page']/div[1]" position="before">
+	    <br/><br/><br/>
+	    <table class="table table-condensed" style="width:100%">
+		<thead>
+		    <tr>
+			<th style="width:25%; max-width:25%; ">Delivery Method:</th>
+			<th style="width:25%; max-width:25%; ">Delivery Hub:</th>
+			<th style="width:30%; max-width:30%; ">Client Courier Company:</th>
+			<th style="width:20%; max-width:20%; text-align:right;">Branding:</th>
+		    </tr>
+		</thead>
+		<tbody>
+		    <t t-if="o.sale_order_id">
+		    <tr>
+			<td style="width:25%; max-width:25%; "><t t-if="o.sale_order_id.carrier_id"><span t-esc="o.sale_order_id.carrier_id.name"/></t></td>
+			<td style="width:25%; max-width:25%; "><t t-if="o.sale_order_id.delivery_hub_id"><span t-esc="o.sale_order_id.delivery_hub_id.name"/></t></td>
+			<td style="width:30%; max-width:30%; "><t t-if="o.sale_order_id.courier_company_id"><span t-esc="o.sale_order_id.courier_company_id.name"/></t></td>
+			<td style="width:20%; max-width:20%; text-align:right;"><t t-if="o.has_branding"><t>Has Branding</t></t><t t-if="not o.has_branding"><t>No Branding</t></t></td>
+		    </tr>
+		    </t>
+		</tbody>
+	    </table>
+	    <table class="table table-condensed" style="width:100%">
+                <thead>
+                    <tr>
+                        <th style="width:25%; max-width:25%; ">Sales Order No:</th>
+                        <th style="width:25%; max-width:25%; ">Invoice No:</th>
+                        <th style="width:25%; max-width:25%; ">Sales Person:</th>
+			<th style="width:25%; max-width:25%;"></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+			<td style="width:25%; max-width:25%; "><t t-if="o.sale_order_id"><span t-esc="o.sale_order_id.name"/></t></td>
+                        <td style="width:25%; max-width:25%; "><t t-if="o.invoice_id"><span t-esc="o.invoice_id.number"/></t></td>
+                        <td style="width:25%; max-width:25%; "><t t-if="o.sale_order_id"><t t-if="o.sale_order_id.user_id"><span t-esc="o.sale_order_id.user_id.name"/></t></t></td>
+			<td style="width:25%; max-width:25%;"></td>
+                    </tr>
+                </tbody>
+            </table>
+	</xpath>
+	<xpath expr="//div[@class='page']/div[1]" position="replace">
+	    <div>
+	    <table class="table" style="width:100%">
+	        <tr>
+	            <td style="border:1px solid black;width:45%" rowspan="8">
+			<b>Delivery Address :</b><br/>
+			<t t-if="o.sale_order_id">
+			    <t t-if="o.sale_order_id.alternate_do">
+				<t t-if="o.sale_order_id.alt_street"><t t-esc="o.sale_order_id.alt_street"/><br/></t>
+			        <t t-if="o.sale_order_id.alt_street2"><t t-esc="o.sale_order_id.alt_street2"/><br/></t>
+				<t t-if="o.sale_order_id.alt_city"><t t-esc="o.sale_order_id.alt_city"/><br/></t>
+				<t t-if="o.sale_order_id.alt_state_id"><t t-esc="o.sale_order_id.alt_state_id.name"/><br/></t>
+				<t t-if="o.sale_order_id.alt_country_id"><t t-esc="o.sale_order_id.alt_country_id.name"/><br/></t>
+				<t t-if="o.sale_order_id.alt_zip"><t t-esc="o.sale_order_id.alt_zip"/><br/></t>
+			    </t>
+			    <t t-if="not o.sale_order_id.alternate_do">				
+	                        <b><t t-esc="o.sale_order_id.partner_shipping_id.name"/></b><br/>
+	                        <div t-field="o.sale_order_id.partner_shipping_id"
+	                             t-options='{"widget": "contact", "fields": ["address"], "no_marker": True}'/>
+			    </t>
+	                </t>
+	            </td>
+	            <td style="width:10%; border:none;" ></td>
+	            <td style="border:1px solid black;width:45%" rowspan="8">
+			<b>Customer Details :</b><br/>
+			<t t-if="o.sale_order_id">
+			    <t t-if="o.sale_order_id.partner_id.company_type == 'company' ">
+				<t t-esc="o.sale_order_id.partner_id.name"/><br/>
+				<t t-esc="o.sale_order_id.partner_id.ref"/>
+			    </t>
+			    <t t-if="o.sale_order_id.partner_id.company_type == 'person' ">
+				<t t-if="o.sale_order_id.partner_id.parent_id">
+				    <t t-esc="o.sale_order_id.partner_id.parent_id.name"/><br/>
+				    <t t-esc="o.sale_order_id.partner_id.parent_id.ref"/>
+				</t>
+			    </t>
+			</t>								
+		    </td>
+		</tr>
+	    </table>
+	    </div>
+	</xpath>	
+	<xpath expr="//div[@class='page']//table[4]" position="after">
+	    <t t-if="o.sale_order_id"><t t-if="o.sale_order_id.product_branding2_ids">
+	    <b>Branding Lines :</b> <br/>
+	    <table style="width:100%;" class="table table-condensed">
+		<thead>
+		    <tr>
+			<th style="width:30%; max-width:30%">Product</th>
+			<th style="width:10%; max-width:10%">QTY</th>
+			<th style="width:20%; max-width:20%">Branding Location</th>
+			<th style="width:20%; max-width:20%">Branding Method</th>
+			<th style="width:10%; max-width:10%">Colour</th>
+			<th style="width:10%; max-width:10%">Size</th>
+		    </tr>
+		</thead>
+		<tbody>
+		    <t t-foreach="o.sale_order_id.order_line" t-as="line">
+			<t t-foreach="line.product_branding_ids" t-as="branding">
+			    <tr>
+				<td><t t-if="branding.product_id"><span t-field="branding.product_id.name"/></t></td>
+				<td><span t-field="line.product_uom_qty"/></td>
+				<td><t t-if="branding.branding_location"><span t-field="branding.branding_location.name"/></t></td>
+				<td><t t-if="branding.branding_method"><span t-field="branding.branding_method.name"/></t></td>
+				<td><t t-if="branding.color_variant"><span t-field="branding.color_variant.name"/></t></td>
+				<td><t t-if="branding.size_variant"><span t-field="branding.size_variant.name"/></t></td>
+			    </tr>
+			</t>
+		   </t>
+		</tbody>
+	    </table>
+	    </t></t>
+	</xpath>
+    </template>
+</odoo>
+	

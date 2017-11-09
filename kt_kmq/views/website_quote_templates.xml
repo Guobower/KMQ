@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <template id="pricing_inherit" name="Pricing" inherit_id="website_quote.pricing">
+	<xpath expr="//tbody/t[2]" position="replace">
+	    <t></t>
+	</xpath>
+	<xpath expr="//section[@id='quote']/t[1]" position="after">
+	    <t t-if="quotation.product_branding2_ids">
+		<table class="table">
+		    <thead>
+                        <tr>
+                            <th>Product</th>
+			    <th>Branding Location</th>
+			    <th>Branding Method</th>
+			    <th>Colours</th>
+			    <th>Sizes</th>
+			    <th>Setup Cost</th>
+			    <th>Cost/Item</th>
+			    <th>Total Cost</th>
+			</tr>
+		    </thead>
+		    <tbody>
+			<t t-foreach="quotation.product_branding2_ids" t-as="branding">
+			    <tr>
+				<td style="border:none"><span t-field="branding.product_id.name"/></td>
+				<td style="border:none"><span t-field="branding.branding_location.name"/></td>
+				<td style="border:none"><span t-field="branding.branding_method.name"/></td>
+				<td style="border:none"><span t-field="branding.color_variant.name"/></td>
+				<td style="border:none"><span t-field="branding.size_variant.name"/></td>
+				<td style="border:none"><span t-field="branding.setup_cost"/></td>
+				<td style="border:none"><span t-field="branding.item_cost"/></td>
+				<td style="border:none"><span t-field="branding.total_cost"/></td>
+			    </tr>
+			</t>
+                        <tr>
+                            <!--<td></td><td></td><td></td><td></td><td></td><td></td>-->
+			    <td style="border:none" colspan="6"></td>
+                            <td style="border:none" class="text-right"><strong>Subtotal:</strong></td>
+                            <td style="border:none" class="text-right">
+                                <strong data-id="total_amount" t-field="quotation.amount_untaxed" t-options='{"widget": "monetary","display_currency": quotation.pricelist_id.currency_id}'/>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <!--<td></td><td></td><td></td><td></td><td></td><td></td>-->
+			    <td style="border:none" colspan="6"></td>
+                            <td style="border:none" class="text-right">Taxes:</td>
+                            <td style="border:none" class="text-right">
+                                <span data-id="total_amount" t-field="quotation.amount_tax" t-options='{"widget": "monetary","display_currency": quotation.pricelist_id.currency_id}'/>
+                            </td>
+                        </tr>
+                        <tr>
+                            <!--<td></td><td></td><td></td><td></td><td></td><td></td>-->
+			    <td style="border:none" colspan="6"></td>
+                            <td style="border:none" class="text-right"><strong>Total:</strong></td>
+                            <td style="border:none" class="text-right">
+                                <strong data-id="total_amount" t-field="quotation.amount_total" t-options='{"widget": "monetary","display_currency": quotation.pricelist_id.currency_id}'/>
+                            </td>
+                        </tr>
+		    </tbody>
+		</table>
+            </t>	
+	</xpath>
+    </template>
+</odoo>
+    

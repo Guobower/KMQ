@@ -1,0 +1,98 @@
+<odoo>
+    <data>
+
+	<record id="invoice_form_inherit" model="ir.ui.view">
+	    <field name="name">invoice.form.inherit</field>
+	    <field name="model">account.invoice</field>
+	    <field name="inherit_id" ref="account.invoice_form"/>
+	    <field name="arch" type="xml">
+		<xpath expr="//button[@name='action_invoice_open']" position="attributes">
+			<attribute name="groups">account.group_account_invoice,kt_kmq.group_account_invoice_inv</attribute>
+		</xpath>
+
+		<field name="payment_term_id" position="after">
+			<field name="associated_project"/>
+		</field>
+
+   		<field name="user_id" position="after">
+                        <field name="pricelist_id"/>
+                </field>
+
+		<field name="invoice_line_ids" position="after">
+		    <field name="account_product_branding_ids" invisible="1">
+			<tree editable="bottom">
+			    <field name="product_id"/>
+                            <field name="branding_location"/>
+                            <field name="branding_method"/>
+                            <field name="color_variant"/>
+                            <field name="size_variant"/>
+                            <field name="setup_cost"/>
+                            <field name="item_cost"/>
+                            <field name="total_cost"/>
+			</tree>
+		    </field>
+		</field>
+		<xpath expr="//notebook/page[@name='other_info']/group[1]/group[2]" position="inside">
+			<field name="has_branding"/>
+		</xpath>
+		<xpath expr="//notebook/page[2]" position="after">
+		    <page string="Description">
+			<group>
+			    <field name="description"/>
+			</group>
+		    </page>
+		</xpath>		    
+	    </field>
+	</record>
+
+    <record id="group_account_invoice_inv" model="res.groups">
+        <field name="name">Invoicing</field>
+        <field name="category_id" ref="base.module_category_accounting_and_finance"/>
+        <field name="users" eval="[(4, ref('base.user_root'))]"/>
+        <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
+    </record>
+
+    <record id="view_payment_term_form_inh" model="ir.ui.view">
+            <field name="name"> account.payment.term.form.inh</field>
+            <field name="model">account.payment.term</field>
+            <field name="inherit_id" ref="account.view_payment_term_form"/>
+            <field name="arch" type="xml">
+                <field name="active" position="after">
+                        <field name="term_value"/>
+                </field>
+            </field>
+     </record>
+      <record id="view_wizard_lead_import" model="ir.ui.view">
+            <field name="name">Delete Invoice</field>
+            <field name="model">delete.invoice</field>
+            <field name="type">form</field>
+            <field name="arch" type="xml">
+                <form string="Import Leads">
+                <label string="This wizard will Import Leads from File. And pls make sure the columns on the file should be in this sequence and format : name,fname,lname,function,partner_name,street,street2,city,zip,phone,mobile,industry_id,email_from,number_of_staff,tag_ids,stage_id" colspan="4" style="color: red;"/>
+                                 <field name="file"/>
+                                 <separator colspan="4"/>
+                                    <group col="2" colspan="4">
+                                <button icon='gtk-cancel' special="cancel"
+                                        string="Cancel" />
+                                <button name="do_leads_import" string="Import"
+                                        colspan="1" type="object" icon="gtk-ok" />
+                        </group>
+                </form>
+            </field>
+        </record>
+
+        <act_window name="Import Leads"
+            res_model="delete.invoice"
+            view_mode="form"
+            target="new"
+            key2="client_action_multi"
+            id="action_wizard_lead_import"/>
+
+        <menuitem id="menu_lead_import_1" action="action_wizard_lead_import" name="Delete Invoice" parent="sales_team.menu_sales"/>
+
+
+
+
+    </data>
+</odoo>
+

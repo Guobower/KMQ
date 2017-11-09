@@ -1,0 +1,53 @@
+<odoo>
+    <data>
+	<record id="sale_order_price_list" model="ir.ui.view">	
+	    <field name="name">sale.price.list</field>
+	    <field name="model">sale.order</field>
+	    <field name="inherit_id" ref="kt_kmq.view_order_form_inh"/>
+	    <field name="groups_id" eval="[(6,0,[ref('sales_team.group_sale_manager'),ref('account.group_account_user')])]"/>
+	    <field name="arch" type="xml">
+		<field name="pricelist_id" position="attributes">
+		    <attribute name="readonly">0</attribute>
+		</field>
+	    </field>
+	</record>
+
+        <record id="res_partner_price_list" model="ir.ui.view">
+            <field name="name">partner.price.list</field>
+            <field name="model">res.partner</field>
+            <!--<field name="inherit_id" ref="product.view_partner_property_form"/>-->
+	    <field name="inherit_id" ref="kt_kmq.view_partner_property_form_inherit"/>
+            <field name="groups_id" eval="[(6,0,[ref('sales_team.group_sale_manager'),ref('account.group_account_user')])]"/>
+            <field name="arch" type="xml">
+                <field name="property_product_pricelist" position="attributes">
+                    <attribute name="readonly">0</attribute>
+                </field>
+            </field>
+        </record>
+
+	<record id="res_partner_available_credit_amount" model="ir.ui.view">
+	    <field name="name">res.partner.available.credit.amount</field>
+	    <field name="model">res.partner</field>
+	    <field name="inherit_id" ref="partner_credit_limit.view_partner_form_inherit"/>
+	    <field name="groups_id" eval="[(6,0,[ref('kt_kmq.credit_limit_group')])]"/>
+	    <field name="arch" type="xml">
+		<field name="available_credit_amount" position="attributes">
+		    <attribute name="invisible">0</attribute>
+		</field>
+	    </field>
+	</record>
+
+	<record id="res_partner_credit_limit" model="ir.ui.view">
+	    <field name="name">res.partner.credit.limit</field>
+	    <field name="model">res.partner</field>
+	    <field name="inherit_id" ref="sale_exception_credit_limit.view_credit_readonly_partner_form"/>
+	    <field name="groups_id" eval="[(6,0,[ref('kt_kmq.credit_limit_group')])]"/>
+            <field name="arch" type="xml">
+                <field name="credit_limit" position="attributes">
+                    <attribute name="invisible">0</attribute>
+                </field>
+            </field>
+        </record>	
+
+    </data>
+</odoo>
