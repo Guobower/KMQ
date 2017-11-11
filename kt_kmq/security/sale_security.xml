@@ -25,29 +25,31 @@
             </field>
         </record>
 
-	<record id="res_partner_available_credit_amount" model="ir.ui.view">
-	    <field name="name">res.partner.available.credit.amount</field>
-	    <field name="model">res.partner</field>
-	    <field name="inherit_id" ref="partner_credit_limit.view_partner_form_inherit"/>
-	    <field name="groups_id" eval="[(6,0,[ref('kt_kmq.credit_limit_group')])]"/>
-	    <field name="arch" type="xml">
-		<field name="available_credit_amount" position="attributes">
-		    <attribute name="invisible">0</attribute>
-		</field>
-	    </field>
-	</record>
+        <record id="res_partner_available_credit_amount" model="ir.ui.view">
+            <field name="name">res.partner.available.credit.amount</field>
+            <field name="model">res.partner</field>
+            <field name="inherit_id" ref="partner_credit_limit.view_partner_form_inherit"/>
+            <field name="groups_id" eval="[(6,0,[ref('kt_kmq.credit_limit_group')])]"/>
+            <field name="arch" type="xml">
+                <field name="available_credit_amount" position="attributes">
+                    <attribute name="invisible">0</attribute>
+                </field>
+            </field>
+        </record>
 
-	<record id="res_partner_credit_limit" model="ir.ui.view">
-	    <field name="name">res.partner.credit.limit</field>
-	    <field name="model">res.partner</field>
-	    <field name="inherit_id" ref="sale_exception_credit_limit.view_credit_readonly_partner_form"/>
-	    <field name="groups_id" eval="[(6,0,[ref('kt_kmq.credit_limit_group')])]"/>
+        <record id="res_partner_credit_limit" model="ir.ui.view">
+            <field name="name">res.partner.credit.limit</field>
+            <field name="model">res.partner</field>
+            <field name="inherit_id" ref="sale_exception_credit_limit.view_credit_readonly_partner_form"/>
+            <field name="groups_id" eval="[(6,0,[ref('kt_kmq.credit_limit_group')])]"/>
             <field name="arch" type="xml">
                 <field name="credit_limit" position="attributes">
                     <attribute name="invisible">0</attribute>
                 </field>
             </field>
-        </record>	
+        </record>
 
+
+	
     </data>
 </odoo>

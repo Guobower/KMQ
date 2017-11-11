@@ -12,7 +12,7 @@ from datetime import datetime
 import re
 import json
 import hashlib
-# import pyDes
+import pyDes
 import urllib2
 import urllib
 import base64

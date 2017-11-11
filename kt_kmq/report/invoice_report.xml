@@ -1,5 +1,4 @@
 <odoo>
-
      <template id="report_invoice_document_inherit" inherit_id="account.report_invoice_document">
         <!--<xpath expr="//table" position="replace">
                 <table></table>
@@ -68,12 +67,6 @@
                 <div style="clear:both"/>
             </t>-->
         </xpath>
-	<xpath expr="//div[@class='page']" position="inside">
-	    <p t-if="o.description">
-		<strong>Description :</strong><br/>
-		<span t-field="o.description"/>
-	    </p>
-	</xpath>
     </template>
 <template id="sale.report_invoice_document_inherit_sale" inherit_id="account.report_invoice_document">
         <xpath expr="//div[@name='invoice_address']" position="attributes">
@@ -101,12 +94,16 @@
                 <strong t-if="o.partner_shipping_id != o.partner_id">Invoicing address:</strong>
                 <div t-field="o.partner_id"
                     t-options='{"widget": "contact", "fields": ["address", "name"], "no_marker": True}'/>
-                <span t-if="o.partner_id.parent_id"><span t-if="o.partner_id.parent_id.vat_no">VAT : <span t-field="o.partner_id.parent_id.vat_no"/></span></span>
+                <span t-if="o.partner_id.parent_id"><span t-if="o.partner_id.parent_id.vat_no">VAT: <span t-field="o.partner_id.parent_id.vat_no"/></span></span>
+		<span t-if="not o.partner_id.parent_id">VAT : <span t-field="o.partner_id.vat_no"/></span>
                 <div t-if="o.partner_shipping_id != o.partner_id" class="mt8">
+		   <t t-if="o.partner_shipping_id">
                     <strong>Shipping address:</strong>
                     <div t-field="o.partner_shipping_id"
                         t-options='{"widget": "contact", "fields": ["address", "name"], "no_marker": True}'/>
-                    <span t-if="o.partner_id.parent_id"><span t-if="o.partner_id.parent_id.vat_no">VAT : <span t-field="o.partner_id.parent_id.vat_no"/></span></span>
+                    <span t-if="o.partner_id.parent_id"><span t-if="o.partner_id.parent_id.vat_no">VAT: <span t-field="o.partner_id.parent_id.vat_no"/></span></span>
+		    <span t-if="not o.partner_id.parent_id">VAT : <span t-field="o.partner_id.vat_no"/></span>
+		   </t>
                 </div>
             </div>
 	    <div style="float:right">

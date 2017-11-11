@@ -1,19 +1,23 @@
 <odoo>
-	<record id="credit_limit_group" model="res.groups">
-	    <field name="name">Credit Limit</field>
-	</record>
+        <record id="credit_limit_group" model="res.groups">
+            <field name="name">Credit Limit</field>
+        </record>
 
 	<record id="accounts_creation_group" model="res.groups">
             <field name="name">Accounts(Customers) Creation group</field>
         </record>
 
-	<record id="payment_registration_group" model="res.groups">
+        <record id="payment_registration_group" model="res.groups">
             <field name="name">Payment Registration Group</field>
         </record>
 
+	<record id="push_docs_to_group" model="res.groups">
+            <field name="name">Push Documants to Pastel</field>
+        </record>
 	<record id="allow_blocking" model="res.groups">
-	    <field name="name">Allow Blocking Accounts</field>
-	</record>
+            <field name="name">Allow Blocking Accounts</field>
+        </record>
 
 
 </odoo>
+

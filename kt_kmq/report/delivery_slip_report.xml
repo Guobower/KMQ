@@ -18,37 +18,26 @@
 	<xpath expr="//div[@name='customer_address']/div" position="before">
 	    <br/><br/><br/>
 	</xpath>
-	<!--<xpath expr="//td[@name='lot_qty']" position="replace">
-	    <td name="lot_qty">
-                <span t-esc="int(packlot.qty)"/>
-            </td>
-	</xpath>-->
-        <xpath expr="//div[@class='page']" position="inside">
-            <p t-if="o.description">
-                <strong>Description :</strong><br/>
-                <span t-field="o.description"/>
-            </p>
-        </xpath>
-		
     </template>
 
-
     <report id="stock.action_report_picking" 
-	    string="Picking Operations"
+            string="Picking Operations"
             model="stock.picking"
             report_type="qweb-pdf"
             name="stock.report_picking"
-            file="stock.report_picking_operations"	    
-	    menu="True"
-	/>
+            file="stock.report_picking_operations"          
+            menu="True"
+        />
 
-	<report id="stock.action_report_delivery"
+        <report id="stock.action_report_delivery"
             string="Delivery Slip"
             model="stock.picking"
             report_type="qweb-pdf"
             name="stock.report_deliveryslip"
             file="stock.report_deliveryslip"
-	    menu="False"
+            menu="False"
         />
+
+
 </odoo>
 

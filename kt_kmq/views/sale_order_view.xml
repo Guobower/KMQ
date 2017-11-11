@@ -1,12 +1,10 @@
 <odoo>
 	<data>
-
 	<template id="assets_backend" name="Stock Picking Css" inherit_id="web.assets_backend">
             <xpath expr="." position="inside">
                         <link rel="stylesheet" href="/kt_kmq/static/src/css/stock_picking.css"/>
             </xpath>
-	</template>
-
+        </template>
 
 		<record id="view_res_users_inht" model="ir.ui.view">
                     <field name="name">res.users.form.inh</field>
@@ -27,6 +25,7 @@
                     <field name="arch" type="xml">
 			<field name="virtual_available" position="after">
 				<field name="stock_available"/>
+				<field name="stock_available2"/>
 				<field name="sale_stock_available"/>
 				<field name="purchase_stock_available"/>
 			</field>
@@ -163,37 +162,38 @@
 		    </field>
 		</record>
 
-		<record id="view_order_form_with_carrier_inh_kt" model="ir.ui.view">
-		    <field name="name">view.order.form.with.carrier.inh.kt</field>
-		    <field name="model">sale.order</field>
-		    <field name="inherit_id" ref="delivery.view_order_form_with_carrier"/>
-		    <field name="arch" type="xml">
-			<!--<field name="carrier_id" position="attributes">
-			   <attribute name="required">1</attribute>
-			</field>-->
+ 		<record id="view_order_form_with_carrier_inh_kt" model="ir.ui.view">
+                    <field name="name">view.order.form.with.carrier.inh.kt</field>
+                    <field name="model">sale.order</field>
+                    <field name="inherit_id" ref="delivery.view_order_form_with_carrier"/>
+                    <field name="arch" type="xml">
+                        <!--<field name="carrier_id" position="attributes">
+                           <attribute name="required">1</attribute>
+                        </field>-->
 			<field name="carrier_id" position="replace">
-			    <field name="carrier_id"  context="{'order_id': id}" class="oe_inline" options="{'no_create': True, 'no_open': True}" required="1"/>
-			</field>
-			<xpath expr="//div[@name='carrier_selection']" position="after">
-			    <field name="show_delivery_hub" invisible="1"/>
-			    <field name="show_courier_company" invisible="1"/>
-			    <field name="delivery_hub_id" attrs="{'invisible':[('show_delivery_hub','=',False)]}"/>
-			    <field name="courier_company_id" attrs="{'invisible':[('show_courier_company','=',False)]}"/>
-			</xpath>
-		    </field>
-		</record>
+                            <field name="carrier_id"  context="{'order_id': id}" class="oe_inline" options="{'no_create': True, 'no_open': True}" required="1"/>
+                        </field>
+                        <xpath expr="//div[@name='carrier_selection']" position="after">
+                            <field name="show_delivery_hub" invisible="1"/>
+                            <field name="show_courier_company" invisible="1"/>
+                            <field name="delivery_hub_id" attrs="{'invisible':[('show_delivery_hub','=',False)]}" options="{'no_create':True,'no_create_edit':True}"/>
+                            <field name="courier_company_id" attrs="{'invisible':[('show_courier_company','=',False)]}" options="{'no_create':True,'no_create_edit':True}"/>
 
+                        </xpath>
+                    </field>
+                </record>
 
-		<record id="sale_order_form_quote_inh_kt" model="ir.ui.view">
-		    <field name="name">sale.order.form.quote.inh.kt</field>
-		    <field name="model">sale.order</field>
-		    <field name="inherit_id" ref="website_quote.sale_order_form_quote"/>
-		    <field name="arch" type="xml">
-			<button name="open_quotation" position="attributes">
-			    <attribute name="invisible">1</attribute>
-			</button>
-		    </field>
-		</record>
+                <record id="sale_order_form_quote_inh_kt" model="ir.ui.view">
+                    <field name="name">sale.order.form.quote.inh.kt</field>
+                    <field name="model">sale.order</field>
+                    <field name="inherit_id" ref="website_quote.sale_order_form_quote"/>
+                    <field name="arch" type="xml">
+                        <button name="open_quotation" position="attributes">
+                            <attribute name="invisible">1</attribute>
+                        </button>
+                    </field>
+                </record>
+
 
 		<record id="branding_lines_form" model="ir.ui.view">
                     <field name="name">product.branding.lines.form</field>
@@ -288,105 +288,107 @@
             <field eval="'ir.actions.server,%d'%action_import_product_variants_images" name="value"/>
         </record>
 
-	<record id="stock_picking_form_inh_kt" model="ir.ui.view">
-	    <field name="name">stock.picking.form.inh</field>
-	    <field name="model">stock.picking</field>
-	    <field name="inherit_id" ref="stock.view_picking_form"/>
-	    <field name="arch" type="xml">
-		<field name="origin" position="after">
-			<field name="sale_order_id"/>
-			<field name="invoice_id"/>
-			<field name="has_branding"/>
-			<!--<field name="invoice_status_g" class="oe_right oe_inline my_customize_status_green" attrs="{'invisible':[('invoice_status_g','not in',['open','paid']),('customer_account_type','=','account')]}"/>
-			<field name="invoice_status_r" class="oe_right oe_inline my_customize_status_red" attrs="{'invisible':[('invoice_status_r','not in',['open','draft']),('customer_account_type','=','cod')]}"/>-->
-			<field name="customer_account_type"/>
-			<field name="invoice_status_color" invisible="1"/>
-			<field name="invoice_status_g" class="my_customize_status_green" attrs="{'invisible':['|',('invoice_status_color','=',False),('invoice_status_color','in',['none','red'])]}"/>
-			<field name="invoice_status_r" class="my_customize_status_red" attrs="{'invisible':['|',('invoice_status_color','=',False),('invoice_status_color','in',['none','green'])]}"/>
-		</field>
-		<xpath expr="//notebook/page[3]" position="after">
-		    <page string="Description">
-			<group>
-			    <field name="description"/>
-			</group>
-		    </page>
-		</xpath>
-		<field name="location_dest_id" position="after">
-		    <field name="is_printed" invisible="0" readonly="1"/>
-		    <field name="printed" invisible="0" readonly="1"/>
-		    <field name="is_stock_available" readonly="1"/>
-		</field>
-		<xpath expr="//button[@name='do_print_picking']" position="replace">
-		    <button name="do_print_picking" string="Print" groups="stock.group_stock_user" type="object" attrs="{'invisible': ['|',('state', 'not in', ('assigned', 'partially_available')),('printed','=',True)]}"/>
+        <record id="stock_picking_form_inh_kt" model="ir.ui.view">
+            <field name="name">stock.picking.form.inh</field>
+            <field name="model">stock.picking</field>
+            <field name="inherit_id" ref="stock.view_picking_form"/>
+            <field name="arch" type="xml">
+                <field name="origin" position="after">
+                        <field name="sale_order_id"/>
+                        <field name="invoice_id"/>
+                        <field name="has_branding"/>
+                        <!--<field name="invoice_status_g" class="oe_right oe_inline my_customize_status_green" attrs="{'invisible':[('invoice_status_g','not in',['open','paid']),('customer_account_type','=','account')]}"/>
+                        <field name="invoice_status_r" class="oe_right oe_inline my_customize_status_red" attrs="{'invisible':[('invoice_status_r','not in',['open','draft']),('customer_account_type','=','cod')]}"/>-->
+                        <field name="customer_account_type"/>
+                        <field name="invoice_status_color" invisible="1"/>
+                        <field name="invoice_status_g" class="my_customize_status_green" attrs="{'invisible':['|',('invoice_status_color','=',False),('invoice_status_color','in',['none','red'])]}"/>
+                        <field name="invoice_status_r" class="my_customize_status_red" attrs="{'invisible':['|',('invoice_status_color','=',False),('invoice_status_color','in',['none','green'])]}"/>
+                </field>
+                <xpath expr="//notebook/page[3]" position="after">
+                    <page string="Description">
+                        <group>
+                            <field name="description"/>
+                        </group>
+                    </page>
+                </xpath>
+                <field name="location_dest_id" position="after">
+                    <field name="is_printed" invisible="0" readonly="1"/>
+                    <field name="printed" invisible="0" readonly="1"/>
+                </field>
+                <xpath expr="//button[@name='do_print_picking']" position="replace">
+                    <button name="do_print_picking" string="Print" groups="stock.group_stock_user" type="object" attrs="{'invisible': ['|',('state', 'not in', ('assigned', 'partially_available')),('printed','=',True)]}"/>
 		    <button name="do_print_invoice" string="Print Invoice" groups="stock.group_stock_user" type="object" attrs="{'invisible': ['|',('state', 'not in', ('assigned', 'partially_available')),('is_printed','=',True)]}"/>
-		</xpath>
-		    
-	    </field>
-	</record>
-	<record id="stock_pick_tree_inh_kt" model="ir.ui.view">
-	    <field name="name">stock.pick.tree.inh.kt</field>
-	    <field name="model">stock.picking</field>
-	    <field name="inherit_id" ref="stock.vpicktree"/>
-	    <field name="arch" type="xml">
-		<field name="state" position="before">
-		    <field name="has_branding"/>	
-		    <field name="carrier_id" string="Delivery Method"/>
-		    <field name="customer_account_type" string="Account Type"/>
-		    <field name="invoice_status_g"/>
-		    <field name="printed"/>
-		</field>
-	    </field>
-	</record>
-	<record id="delivery_hub_view_form" model="ir.ui.view">
-	    <field name="name">delivery.hub.form</field>
-	    <field name="model">delivery.hub</field>
-	    <field name="arch" type="xml">
-		<form>
-		    <sheet>
-			<group>
-			    <group>
-				<field name="name"/>
-			    </group>
-			</group>
-		    </sheet>
-		</form>
-	    </field>
-	</record>
+                </xpath>
 
-	<record id="delivery_hub_view_tree" model="ir.ui.view">
+
+            </field>
+        </record>
+        <record id="stock_pick_tree_inh_kt" model="ir.ui.view">
+            <field name="name">stock.pick.tree.inh.kt</field>
+            <field name="model">stock.picking</field>
+            <field name="inherit_id" ref="stock.vpicktree"/>
+            <field name="arch" type="xml">
+                <field name="state" position="before">
+                    <field name="has_branding"/>
+                    <field name="carrier_id" string="Delivery Method"/>
+                    <field name="customer_account_type" string="Account Type"/>
+                    <field name="invoice_status_g"/>
+                    <field name="printed"/>
+                </field>
+            </field>
+        </record>
+
+
+        <record id="delivery_hub_view_form" model="ir.ui.view">
+            <field name="name">delivery.hub.form</field>
+            <field name="model">delivery.hub</field>
+            <field name="arch" type="xml">
+                <form>
+                    <sheet>
+                        <group>
+                            <group>
+                                <field name="name"/>
+                            </group>
+                        </group>
+                    </sheet>
+                </form>
+            </field>
+        </record>
+
+        <record id="delivery_hub_view_tree" model="ir.ui.view">
             <field name="name">delivery.hub.tree</field>
             <field name="model">delivery.hub</field>
             <field name="arch" type="xml">
                 <tree>
-		    <field name="name"/>
-		</tree>
-	    </field>
-	</record>
+                    <field name="name"/>
+                </tree>
+            </field>
+        </record>
 
-	<record id="delivery_hub_action" model="ir.actions.act_window">
-	    <field name="name">Delivery Hub</field>
-	    <field name="res_model">delivery.hub</field>
-	    <field name="view_type">form</field>
-	    <field name="view_mode">tree,form</field>
-	</record>
+        <record id="delivery_hub_action" model="ir.actions.act_window">
+            <field name="name">Delivery Hub</field>
+            <field name="res_model">delivery.hub</field>
+            <field name="view_type">form</field>
+            <field name="view_mode">tree,form</field>
+        </record>
 
-	<menuitem id="delivery_hub_menu" action="delivery_hub_action" string="Delivery Hub" parent="delivery.sale_menu_delivery" sequence="2"/>
+        <menuitem id="delivery_hub_menu" action="delivery_hub_action" string="Delivery Hub" parent="delivery.sale_menu_delivery" sequence="2"/>
 
-	<record id="courier_company_view_form" model="ir.ui.view">
-	    <field name="name">courier.company.form</field>
-	    <field name="model">courier.company</field>
-	    <field name="arch" type="xml">
-		<form>
-		    <sheet>
-			<group>
-			    <group>
-				<field name="name"/>
-			    </group>
-			</group>
-		    </sheet>
-		</form>
-	    </field>
-	</record>
+        <record id="courier_company_view_form" model="ir.ui.view">
+            <field name="name">courier.company.form</field>
+            <field name="model">courier.company</field>
+            <field name="arch" type="xml">
+                <form>
+                    <sheet>
+                        <group>
+                            <group>
+                                <field name="name"/>
+                            </group>
+                        </group>
+                    </sheet>
+                </form>
+            </field>
+        </record>
 
         <record id="courier_company_view_tree" model="ir.ui.view">
             <field name="name">courier.company.tree</field>
@@ -406,6 +408,7 @@
         </record>
 
         <menuitem id="courier_company_menu" action="courier_company_action" string="Courier Company" parent="delivery.sale_menu_delivery" sequence="3"/>
-        
+
+
 	</data>
 </odoo>

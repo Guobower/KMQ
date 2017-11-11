@@ -9,13 +9,13 @@
 	    <div class="col-xs-6" name="company_address">
 		
                 <span t-field="company.partner_id"
-                    t-field-options='{"widget": "contact", "fields": ["address","name"], "no_marker": true}' 
+                    t-field-options='{"widget": "contact", "fields": ["address","name"], "no_marker": true}'
                     style="border-bottom: 1px solid black; display:inline-block;font-size:12px;"/><br/>
 	        VAT : 4680202381 <br/>
-		Export Code : 20620341 <br/>
+                Export Code : 20620341 <br/>
 		<span style="border-bottom: 1px solid black; display:inline-block;font-size:12px;"/>
-
             </div>	
+	
 	</xpath>
     </template>
 
@@ -32,13 +32,13 @@
                     <strong t-if="doc.partner_shipping_id == doc.partner_invoice_id">Invoicing and shipping address:</strong>
                     <strong t-if="doc.partner_shipping_id != doc.partner_invoice_id">Invoicing address:</strong>
                     <div t-field="doc.partner_invoice_id" t-options="{&quot;widget&quot;: &quot;contact&quot;, &quot;fields&quot;: [&quot;address&quot;, &quot;name&quot;, &quot;phone&quot;, &quot;fax&quot;], &quot;no_marker&quot;: True, &quot;phone_icons&quot;: True}"/>
-		<span t-if="doc.partner_id.parent_id"><span t-if="doc.partner_id.parent_id.vat_no">VAT: <span t-field="doc.partner_id.parent_id.vat_no"/></span></span>
-
+		    <span t-if="doc.partner_id.parent_id"><span t-if="doc.partner_id.parent_id.vat_no">VAT: <span t-field="doc.partner_id.parent_id.vat_no"/></span></span>
+		    <span t-if="not doc.partner_id.parent_id">VAT : <span t-field="doc.partner_id.vat_no"/></span>
                     <div t-if="doc.partner_shipping_id != doc.partner_invoice_id" class="mt8">
                         <strong>Shipping address:</strong>
                         <div t-field="doc.partner_shipping_id" t-options="{&quot;widget&quot;: &quot;contact&quot;, &quot;fields&quot;: [&quot;address&quot;, &quot;name&quot;, &quot;phone&quot;, &quot;fax&quot;], &quot;no_marker&quot;: True, &quot;phone_icons&quot;: True}"/>
-                        <span t-if="doc.partner_id.parent_id"><span t-if="doc.partner_id.parent_id.vat_no">VAT: <span t-field="doc.partner_id.parent_id.vat_no"/></span></span>
-
+			<span t-if="doc.partner_id.parent_id"><span t-if="doc.partner_id.parent_id.vat_no">VAT: <span t-field="doc.partner_id.parent_id.vat_no"/></span></span>
+			<span t-if="not doc.partner_id.parent_id">VAT : <span t-field="doc.partner_id.vat_no"/></span>
                     </div>
                     </t>
                     <t t-if="doc.alternate_do">
@@ -63,7 +63,8 @@
                    </table>-->
 		    <br/><br/><br/>
 		    <t><b>Partner Address :</b></t>
-                    <div t-field="doc.partner_id" t-options="{&quot;widget&quot;: &quot;contact&quot;, &quot;fields&quot;: [&quot;address&quot;, &quot;name&quot;], &quot;no_marker&quot;: True}"/>
+                    <div t-field="doc.partner_id" t-options="{&quot;widget&quot;: &quot;contact&quot;, &quot;fields&quot;: [&quot;address&quot;, &quot;name&quot;], &quot;no_marker&quot;: True}"/><br/>
+		    VAT : <span t-field="doc.partner_id.vat_no"/>
                 </div>
             </div>
 	</xpath>
@@ -148,13 +149,9 @@
 	    </t>
 	</xpath>
 
-	<!--<xpath expr="//div[@name='total']/div/table/tr[1]/t/tr/td[2]" position="replace">
-	    <td class="text-right">
-                                    <span t-esc="doc.amount_tax"/>
-                                </td>
-	</xpath>-->
-	<xpath expr="//div[@name='total']" position="replace">
-	<div class="row" name="total">
+
+        <xpath expr="//div[@name='total']" position="replace">
+        <div class="row" name="total">
                 <div class="col-xs-4 pull-right">
                     <table class="table table-condensed">
                         <tr class="border-black">
@@ -182,6 +179,7 @@
                     </table>
                 </div>
             </div>
-	</xpath>
+        </xpath>
+
     </template>
 </odoo>

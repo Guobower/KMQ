@@ -1,13 +1,12 @@
 from odoo import fields,models,api,_
 import requests
 import json
-# import xmltodict
+import xmltodict
 from datetime import datetime,date
 import MySQLdb
 import base64
 import StringIO
-import xlrd
-from odoo.exceptions import UserError, RedirectWarning, ValidationError
+from odoo.exceptions import UserError, RedirectWarning, ValidationError, Warning
 
 epoch = datetime.utcfromtimestamp(0)
 
@@ -23,7 +22,7 @@ class delete_invoice(models.Model):
         val=base64.decodestring(file_name)
         fp = StringIO.StringIO()
         fp.write(val)
-        wb = xlrd.open_workbook(file_contents=fp.getvalue())
+        #wb = xlrd.open_workbook(file_contents=fp.getvalue())
         wb.sheet_names()
         sheet_name=wb.sheet_names()
         sh = wb.sheet_by_index(0)
@@ -41,7 +40,6 @@ class delete_invoice(models.Model):
 	      if res:
 		      for data in res:
 			journals.append(data[0])
-	print journals,'journalssssssss'
 			
 
 class my_dict2(dict):
@@ -110,34 +108,16 @@ class AccountInvoiceLine(models.Model):
 class AccountInvoice(models.Model):
     _inherit = 'account.invoice'
 
-
     @api.multi
     def write(self, vals):
-	res = super(AccountInvoice,self).write(vals)
-	#if vals.get('description') and 'SO' in self.origin:
-	if vals.get('description'):
-	    picking_objs = self.env['stock.picking'].search([('group_id.name','=',self.origin)])
-	    for obj in picking_objs:
-		obj.description = self.description
-	if vals.get('state'):
-	    if vals['state'] == 'open':
-		if self.partner_id.account_type == 'account':
-                    stock_picks = self.env['stock.picking'].search([('group_id.name','=',self.origin)])
-		    for pick in stock_picks:
-		        if pick.picking_type_id.name == 'Pick' and pick.is_stock_available and pick.state != 'assigned':
-			    pick.action_assign()
-			    break;
-            if vals['state'] == 'paid':
-                    stock_picks = self.env['stock.picking'].search([('group_id.name','=',self.origin)])
-                    for pick in stock_picks:
-                        if pick.picking_type_id.name == 'Pick' and pick.is_stock_available and pick.state != 'assigned':
-                            pick.action_assign()
-                            break;
+        res = super(AccountInvoice,self).write(vals)
+        if vals.get('description') and 'SO' in self.origin:
+            picking_objs = self.env['stock.picking'].search([('group_id.name','=',self.origin)])
+            for obj in picking_objs:
+                obj.description = self.description
+        return res
 
-					    
-	
-	return res
-	    
+
 
     def _get_sale_order(self):
 	sale_obj = self.env['sale.order']
@@ -145,61 +125,51 @@ class AccountInvoice(models.Model):
 		sale_order_id = sale_obj.search([('name','=',data.origin)]).id
 		if sale_order_id:
 			data.sale_order_id = sale_order_id
+
+    def _get_partner_code(self):
+        for data in self:
+                data.partner_code = data.partner_id and data.partner_id.ref or ''
+
+    @api.multi
+    def copy(self, default=None):
+	auth_users = []
+	andre_user = self.env['res.users'].search([('login','=','andre@kmq.co.za')])
+        if andre_user:
+        	andre_user_id = andre_user.id
+		auth_users.append(andre_user_id)
+	nancy_user = self.env['res.users'].search([('login','=','nancy@kmq.co.za')])
+        if nancy_user:
+                nancy_user_id = nancy_user.id
+		auth_users.append(nancy_user_id)
+	if self._uid not in auth_users:
+                raise UserError(_('You are not authorized to updated quote lines.'))
+
+        self.ensure_one()
+        default['date_invoice'] = datetime.now().date()
+        default = dict(default)
+        return super(AccountInvoice, self).copy(default)
+
+
 	
     account_product_branding_ids = fields.One2many('account.product.branding.lines','invoice_id','Branding Lines')
     associated_project = fields.Many2one('project.project','Associated Project')
     sale_order_id = fields.Many2one('sale.order',compute='_get_sale_order',string='Sale Order')
     pricelist_id = fields.Many2one('product.pricelist', string='Pricelist', states={'draft': [('readonly', False)]}, help="Pricelist for current sales order.")
+    partner_code = fields.Char(compute='_get_partner_code',string='Partner Code')
     description = fields.Text('Description')
-    has_branding = fields.Boolean('Has Branding')
+    created_at_pastel = fields.Boolean('Created at Pastel')
 
     def unix_time_millis(dt):
 	return (dt - epoch).total_seconds() * 1000.0
 
 
-    def register_payment_inv(self):
-        journal = self.env['account.journal'].search([('name','=','Bank')])
-	invoices = self.search([('state','=','open'),('residual','>',0.00)])
-	db = MySQLdb.connect("puladb.intdev.co.za","domain","Str@teg1c321","kmq" )
-        cr = db.cursor()
-	count = 0
-	if invoices:
-            for inv in invoices:
-		qry = "SELECT status,amount_paid from invoice_header_invoice where reference=%s"
-		data = cr.execute(qry,inv.name)
-		res = cr.fetchall()
-		if not inv.payment_move_line_ids:
-            	        if inv.invoice_line_ids and res:
-                                #inv.action_invoice_open()
-                                if res[0][0] == 'Open':
-                                        pay_amount = res[0][1]
-                                else:
-                                        pay_amount = inv.amount_total
-                                payment_data = {
-                                    'journal_id': journal.id,
-                                    'payment_method_id': 1,
-                                    'payment_date': inv.date_invoice,
-                                    'communication': inv.name,
-                                    'invoice_ids': [(4, inv.id, None)],
-                                    'payment_type': 'inbound',
-                                    'amount': float(pay_amount),
-                                    'currency_id': inv.company_id.currency_id.id,
-                                    'partner_id': inv.partner_id.id,
-                                    'partner_type': 'customer',#MAP_INVOICE_TYPE_PARTNER_TYPE[inv.type],
-                                    #'payment_difference_handling':'reconcile',
-                                    #'payment_difference': inv.residual,
-                                }
+    def post_to_pastel(self):
 
-                                payment = self.env['account.payment'].create(payment_data)
-                                payment.post()
-				self._cr.commit()
-				count+=1
+	if not self.name and self.type == 'out_refund':
+                raise UserError(_('Please add a reference for this Invoice.'))
 
-
-    """@api.multi
-    def action_invoice_open(self):
-        # lots of duplicate calls to action_invoice_open, so we remove those already openi
-
+        # lots of duplicate calls to action_invoice_open, so we remove those already open
+	#res = super(AccountInvoice,self).action_invoice_open()
 	headers = {"Content-type": "application/json"}
 	client_data = {"username" : "Daniel"}
         client_data_resp = requests.post(url='http://letsap.dedicated.co.za/portmapping/CompanyList.asmx/GetCompanyList', headers=headers,  json=client_data)
@@ -208,12 +178,6 @@ class AccountInvoice(models.Model):
 		if data['Alias'] == 'PASTELCONNECT':
 		        client_handle = data['ClientHandle'] 
 			continue
-
-	url = "http://letsap.dedicated.co.za/Letsap.Framework.WebHost/KMQAPIService.svc/GetTestConnection/"+str(client_handle)
-        conn = requests.get(url)
-	print conn.status_code,'staussssss'
-        if conn.status_code != 200:
-                raise UserError(_('Cannot Validate Invoice: Letsap service offline.'))
 
 	data = {"clientHandle" : client_handle, "customerID" : str(self.partner_id.parent_id and self.partner_id.parent_id.ref or self.partner_id.ref)}
 	resp = requests.post(url='http://letsap.dedicated.co.za/Letsap.Framework.WebHost/KMQAPIService.svc/GetCustomer', headers=headers,  json=data)
@@ -224,18 +188,23 @@ class AccountInvoice(models.Model):
 		doctype = 8
 		part_doc_type = "108"
 		order_ref = self.reference
+		#next_seq = self.env['ir.sequence'].next_by_code('Vendor Bills')
 	elif self.type == 'out_invoice':
 		doctype = 3
 		part_doc_type = "103"
 		order_ref=self.name
+		#next_seq = self.env['ir.sequence'].next_by_code('Customer Invoices')
 	elif self.type == 'out_refund':
                 doctype = 4
                 part_doc_type = "104"
 		order_ref=self.origin
+		#next_seq = self.env['ir.sequence'].next_by_code('Customer Refunds')
 	elif self.type == 'in_refund':
                 doctype = 9
                 part_doc_type = "109"
 		order_ref = self.origin
+		#next_seq = self.env['ir.sequence'].next_by_code('Vendor Refunds')
+
 	resp_inv_num = requests.post(url='http://letsap.dedicated.co.za/Letsap.Framework.WebHost/KMQAPIService.svc/GetNextDocumentNumber', headers=headers,json={'clientHandle':client_handle,'globalNumbers':True,'userid':1,'docType':doctype})
 	jd_inv_num = json.loads(resp_inv_num.content)
 	## Date Changes
@@ -246,35 +215,7 @@ class AccountInvoice(models.Model):
 	b = datetime.strptime(str(self.date_due), '%Y-%m-%d')
         b = int(unix_time_millis(b))
 
-	month = datetime.strptime(str(self.date_invoice),'%Y-%m-%d').month
-	if month ==  3:
-		part_period = 101
-	elif month ==  4:
-		part_period = 102
-	elif month ==  5:
-		part_period = 103
-	elif month ==  6:
-		part_period = 104
-	elif month ==  7:
-		part_period = 105
-	elif month ==  8:
-		part_period = 106
-	elif month ==  9:
-		part_period = 107
-	elif month ==  10:
-		part_period = 108
-	elif month ==  11:
-		part_period = 109
-	elif month ==  12:
-		part_period = 110
-	elif month ==  1:
-		part_period = 111
-	elif month ==  2:
-		part_period = 112
-	print part_period,'=========',type(part_period)
-	print kk
 	lt = []
-	res = super(AccountInvoice,self).action_invoice_open()
 	delivery_street = delivery_street2 = delivery_city = delivery_zip1 = delivery_state = delivery_country = state_name = country_name = ''
 	if self.partner_shipping_id:
                 if self.partner_shipping_id.state_id:
@@ -288,9 +229,12 @@ class AccountInvoice(models.Model):
                 delivery_country = country_name
                 delivery_zip1 = self.partner_shipping_id.zip
 	## ENd
+	part_period_dic = {'Mar':101,'Apr':102,'May':103,'Jun':104,'Jul':105,'Aug':106,'Sep':107,'Oct':108,'Nov':109,'Dec':110,'Jan':111,'Feb':112}
+	invoice_month = datetime.strptime(str(self.date_invoice),'%Y-%m-%d').strftime('%b')
+	part_period_code = part_period_dic[invoice_month]
 	if jd_inv_num:
 		inv_number = jd_inv_num['GetNextDocumentNumberResult']
-		documentfullmodel = { "_documentID": "00000000-0000-0000-0000-000000000000",    "_userID": "00000000-0000-0000-0000-000000000000",    "_documentType": part_doc_type,    "_documentNumber": str(inv_number),    "_updated":False,    "_documentDate": "/Date("+str(a)+"+0200"+")/",    "_paymentDueDate": "/Date("+str(b)+"+0200"+")/",    "_orderNumber": str(order_ref),    "_salesmanCode": str(self.partner_id.parent_id and self.partner_id.parent_id.user_id.partner_id.ref or self.partner_id.user_id.partner_id.ref),    "_inclusiveInput": False,    "_forceTax": 0,    "_forceTaxType": 0,    "_message": "|||",    "_postalAddress": "||||",    "_deliveryAddress": "||||",    "_telephone": "",    "_fax": "",    "_email": "",    "_contact": "", "_project": "", " _currencyCode":0,    "_exchangeRate": 1,    "_discountPercent": 0,    "_settlementTerms": "0",    "_dayBased": False,    "_paymentTerms": 0,   "_localExc": 0,    "_foreignExc": 0,    "_localDiscount": 0,   "_foreignDiscount": 0,    "_localTax": 0,    "_foreignTax": 0,    "_localInc": 0,    "_foreignInc": 0,    "_costPrice": 0,    "_deleted": False,    "_printed": False,    "_onHold": False,    "_cOD": False,    "_packed": False,   "_emailed": False,    "_packingMethod": "",    "_deliveryMethod": "",    "_note": "",    "_needsAuthorisation": False,    "_uploadedToServer": False,    "_downloadedToTerminal": False,    "_terminalID": 0,   "_creditNoteReason": "",    "_freight": "",    "_ship": "",    "_updatedOn": "/Date("+str(a)+"+0200"+")/",    "_createDate": "/Date("+str(a)+"+0200"+")/",    "_documentLines": None,    "_users": None,   "_documentPayment": None,    "_partnerCusomerCode": str(self.partner_id.parent_id and self.partner_id.parent_id.ref or self.partner_id.ref),    "_partnerAccountCode": str(self.name),    "_partnerPeriod": part_period , "_currencyCode": 0}
+		documentfullmodel = { "_documentID": "00000000-0000-0000-0000-000000000000",    "_userID": "00000000-0000-0000-0000-000000000000",    "_documentType": part_doc_type,    "_documentNumber": str(self.number),    "_updated":False,    "_documentDate": "/Date("+str(a)+"+0200"+")/",    "_paymentDueDate": "/Date("+str(b)+"+0200"+")/",    "_orderNumber": str(order_ref),    "_salesmanCode": str(self.user_id and self.user_id.partner_id.ref),    "_inclusiveInput": False,    "_forceTax": 0,    "_forceTaxType": 0,    "_message": "|||",    "_postalAddress": "||||",    "_deliveryAddress": "||||",    "_telephone": "",    "_fax": "",    "_email": "",    "_contact": "", "_project": "", " _currencyCode":0,    "_exchangeRate": 1,    "_discountPercent": 0,    "_settlementTerms": "0",    "_dayBased": False,    "_paymentTerms": 0,   "_localExc": 0,    "_foreignExc": 0,    "_localDiscount": 0,   "_foreignDiscount": 0,    "_localTax": 0,    "_foreignTax": 0,    "_localInc": 0,    "_foreignInc": 0,    "_costPrice": 0,    "_deleted": False,    "_printed": False,    "_onHold": False,    "_cOD": False,    "_packed": False,   "_emailed": False,    "_packingMethod": "",    "_deliveryMethod": "",    "_note": "",    "_needsAuthorisation": False,    "_uploadedToServer": False,    "_downloadedToTerminal": False,    "_terminalID": 0,   "_creditNoteReason": "",    "_freight": "",    "_ship": "",    "_updatedOn": "/Date("+str(a)+"+0200"+")/",    "_createDate": "/Date("+str(a)+"+0200"+")/",    "_documentLines": None,    "_users": None,   "_documentPayment": None,    "_partnerCusomerCode": str(self.partner_id.parent_id and self.partner_id.parent_id.ref or self.partner_id.ref),    "_partnerAccountCode": str(self.name),    "_partnerPeriod": part_period_code , "_currencyCode": 0}
 		arrayofdocumentlinefullmodel = []
 		inv_created = False
 		for line in self.invoice_line_ids:
@@ -352,12 +296,12 @@ class AccountInvoice(models.Model):
 			val["_partnerProductCode"] = str(line.product_id.default_code)
 			val["_partnerCustomerCode"] = str(self.partner_id.ref)
 			val["_partnerSalesmanCode"] = ""
-			val["_partnerPeriod"] = part_period
+			val["_partnerPeriod"] = part_period_code
 			val["_partnerDocumentDate"] =  "/Date(1490172598000+0200)/"
 			val["_partnerVersion"] = 10
 			val["_partnerItemCategory"] = ""
 			val["_partnerDocumentType"] = part_doc_type
-			val["_partnerDocumentNumber"] = str(inv_number)
+			val["_partnerDocumentNumber"] = str(self.number)
 			val["_partnerFixedDescription"] = False
 			val["_partnerServiceItem"] = False
 			val["_partnerShowUnitQty"] = True
@@ -382,13 +326,197 @@ class AccountInvoice(models.Model):
 			url = "http://letsap.dedicated.co.za/Letsap.Framework.WebHost/KMQAPIService.svc/GetTestConnection/"+str(client_handle)
 			conn = requests.get(url)
 			if conn.status_code == 200:
-				#resp_inv_create = requests.post(url='http://letsap.dedicated.co.za/Letsap.Framework.WebHost/KMQAPIService.svc/SaveDocument', headers=headers,json=my_dict2(inv_dict))
+				resp_inv_create = requests.post(url='http://letsap.dedicated.co.za/Letsap.Framework.WebHost/KMQAPIService.svc/SaveDocument', headers=headers,json=my_dict2(inv_dict))
 				inv_created = True
+				self.created_at_pastel = True
 		
 		except Exception,e:
 			print "Exception is:",e
-	self.number  =  str(inv_number)
-        return res """
+
+
+    @api.multi
+    def action_invoice_open(self):
+        if not self.name and self.type == 'out_refund':
+            raise UserError(_('Please add a reference for this Invoice.'))
+
+        # lots of duplicate calls to action_invoice_open, so we remove those already open
+        res = super(AccountInvoice,self).action_invoice_open()
+        headers = {"Content-type": "application/json"}
+        client_data = {"username" : "Daniel"}
+        client_data_resp = requests.post(url='http://letsap.dedicated.co.za/portmapping/CompanyList.asmx/GetCompanyList', headers=headers,  json=client_data)
+        client_data_res = json.loads(client_data_resp.content)
+        for data in client_data_res['d']:
+            if data['Alias'] == 'PASTELTEST-PC':
+                client_handle = data['ClientHandle'] 
+                continue
+#     	for data in client_data_res['d']:
+#     		if data['Alias'] == 'PASTELCONNECT':
+# 		        client_handle = data['ClientHandle'] 
+#     			continue
+
+        data = {"clientHandle" : client_handle, "customerID" : str(self.partner_id.parent_id and self.partner_id.parent_id.ref or self.partner_id.ref)}
+        resp = requests.post(url='http://letsap.dedicated.co.za/Letsap.Framework.WebHost/KMQAPIService.svc/GetCustomer', headers=headers,  json=data)
+        jd = json.loads(resp.content)
+        resp_data = jd['GetCustomerResult']
+        order_ref= ''
+        if self.type == 'in_invoice':
+            doctype = 8
+            part_doc_type = "108"
+            order_ref = self.reference
+            #next_seq = self.env['ir.sequence'].next_by_code('Vendor Bills')
+        elif self.type == 'out_invoice':
+            doctype = 3
+            part_doc_type = "103"
+            order_ref=self.name
+            #next_seq = self.env['ir.sequence'].next_by_code('Customer Invoices')
+        elif self.type == 'out_refund':
+            doctype = 4
+            part_doc_type = "104"
+            order_ref=self.origin
+            #next_seq = self.env['ir.sequence'].next_by_code('Customer Refunds')
+        elif self.type == 'in_refund':
+            doctype = 9
+            part_doc_type = "109"
+            der_ref = self.origin
+        #next_seq = self.env['ir.sequence'].next_by_code('Vendor Refunds')
+
+        ## Date Changes
+        #self.date_invoice = datetime.now().date()
+        a = datetime.strptime(str(self.date_invoice), '%Y-%m-%d')
+        a = int(unix_time_millis(a))
+        self._onchange_payment_term_date_invoice()
+        b = datetime.strptime(str(self.date_due), '%Y-%m-%d')
+        b = int(unix_time_millis(b))
+
+        lt = []
+        delivery_street = delivery_street2 = delivery_city = delivery_zip1 = delivery_state = delivery_country = state_name = country_name = ''
+        if self.partner_shipping_id:
+            if self.partner_shipping_id.state_id:
+                    state_name = self.env['res.country.state'].search([('id','=',self.partner_shipping_id.state_id.id)]).name
+            if self.partner_shipping_id.country_id:
+                    country_name = self.env['res.country'].search([('id','=',self.partner_shipping_id.country_id.id)]).name
+            delivery_street = self.partner_shipping_id.street
+            delivery_street2 = self.partner_shipping_id.street2
+            delivery_city = self.partner_shipping_id.city
+            delivery_state = state_name
+            delivery_country = country_name
+            delivery_zip1 = self.partner_shipping_id.zip
+    ## ENd
+        part_period_dic = {'Mar':101,'Apr':102,'May':103,'Jun':104,'Jul':105,'Aug':106,'Sep':107,'Oct':108,'Nov':109,'Dec':110,'Jan':111,'Feb':112}
+        invoice_month = datetime.strptime(str(self.date_invoice),'%Y-%m-%d').strftime('%b')
+        part_period_code = part_period_dic[invoice_month]
+        if self.number:
+            inv_number = self.number #jd_inv_num['GetNextDocumentNumberResult']
+            documentfullmodel = { "_documentID": "00000000-0000-0000-0000-000000000000",    "_userID": "00000000-0000-0000-0000-000000000000",    "_documentType": part_doc_type,    "_documentNumber": str(self.number),    "_updated":False,    "_documentDate": "/Date("+str(a)+"+0200"+")/",    "_paymentDueDate": "/Date("+str(b)+"+0200"+")/",    "_orderNumber": str(order_ref),    "_salesmanCode": str(self.user_id and self.user_id.partner_id.ref),    "_inclusiveInput": False,    "_forceTax": 0,    "_forceTaxType": 0,    "_message": "|||",    "_postalAddress": "||||",    "_deliveryAddress": "||||",    "_telephone": "",    "_fax": "",    "_email": "",    "_contact": "", "_project": "", " _currencyCode":0,    "_exchangeRate": 1,    "_discountPercent": 0,    "_settlementTerms": "0",    "_dayBased": False,    "_paymentTerms": 0,   "_localExc": 0,    "_foreignExc": 0,    "_localDiscount": 0,   "_foreignDiscount": 0,    "_localTax": 0,    "_foreignTax": 0,    "_localInc": 0,    "_foreignInc": 0,    "_costPrice": 0,    "_deleted": False,    "_printed": False,    "_onHold": False,    "_cOD": False,    "_packed": False,   "_emailed": False,    "_packingMethod": "",    "_deliveryMethod": "",    "_note": "",    "_needsAuthorisation": False,    "_uploadedToServer": False,    "_downloadedToTerminal": False,    "_terminalID": 0,   "_creditNoteReason": "",    "_freight": "",    "_ship": "",    "_updatedOn": "/Date("+str(a)+"+0200"+")/",    "_createDate": "/Date("+str(a)+"+0200"+")/",    "_documentLines": None,    "_users": None,   "_documentPayment": None,    "_partnerCusomerCode": str(self.partner_id.parent_id and self.partner_id.parent_id.ref or self.partner_id.ref),    "_partnerAccountCode": str(self.name),    "_partnerPeriod":  part_period_code, "_currencyCode": 0}
+            arrayofdocumentlinefullmodel = []
+            inv_created = False
+            for line in self.invoice_line_ids:
+                #if self.type not in ['out_invoice','in_invoice','in_refund']:
+                #	line.price_unit = -(line.price_unit)
+                val = {}
+                resp_getitem_code = requests.post(url='http://letsap.dedicated.co.za/Letsap.Framework.WebHost/KMQAPIService.svc/GetItem', headers=headers,json={'clientHandle':client_handle,'itemID':str(line.product_id.default_code)})
+                product_id = json.loads(resp_getitem_code.content)
+                val["_documentLineID"] =  "00000000-0000-0000-0000-000000000000"
+                val["_documentID"] = "00000000-0000-0000-0000-000000000000"
+                val["_lineNumber"] = 0
+                val["_storeID"] = "00000000-0000-0000-0000-000000000000"
+                val["_itemID"] = product_id['GetItemResult']['_itemID']
+                val["_description"] = str(line.name)
+                val["_unit"] = ""
+                val["_salesmanID"] = "00000000-0000-0000-0000-000000000000"
+                val["_forceTax"]= False
+                val["_taxType"]= 1
+                val["_taxPercent"]= "14"
+                val["_discountType"] = 0
+                val["_costPrice"] = line.price_unit
+                val["_quantity"] = int(line.quantity)
+                val["_packSizeCode"] = ""
+                val["_packSizeQty"] = 0
+                val["_partnerStorecode"] = "001"
+                val["_discountType"]= 0 
+                val["_quantityLeft"]= int(line.quantity)
+                val["_packSizeCode"]= ""
+                val["_packSizeQty"]= 0
+                val["_packSizeRatio"]= 0
+                val["_batchSerialItem"]= False
+                val["_length"]= 0
+                val["_width"]= 0
+                val["_height"]= 0
+                val["_weight"]= 0
+                val["_squareMeterPrice"]= 0
+                val["_localExclusivePrice"]= 0
+                val["_localInclusivePrice"]= 0
+                val["_foreignExclusivePrice"]= line.price_unit or 0.0
+                val["_foreignInclusivePrice"]= 0
+                val["_localTaxAmount"]= 0
+                val["_foreignTaxAmount"]= 0
+                val["_discountPercent"]= 0
+                val["_localDiscountAmount"]= 0
+                val["_foreignDiscountAmount"]= 0
+                val["_localExcNetAmount"]= 0
+                val["_localIncNetAmount"]= 0
+                val["_foreignExcNetAmount"]= 0
+                val["_foreignIncNetAmount"]= 0
+                val["_linkLineNumber"]= 0
+                val["_linkDocumentType"]= 0
+                val["_linkDocumentNumber"]= ""
+                val["_changeUnitAndQty"]= False
+                val["_changeDescription"]= False
+                val["_uploadedToServer"]= False
+                val["_downloadedToTerminal"]= False
+                val["_terminalID"]= 0
+                val["_picture"] = []
+                val["_partnerProductCode"] = str(line.product_id.default_code)
+                val["_partnerCustomerCode"] = str(self.partner_id.ref)
+                val["_partnerSalesmanCode"] = ""
+                val["_partnerPeriod"] = part_period_code
+                val["_partnerDocumentDate"] =  "/Date(1490172598000+0200)/"
+                val["_partnerVersion"] = 10
+                val["_partnerItemCategory"] = ""
+                val["_partnerDocumentType"] = part_doc_type
+                val["_partnerDocumentNumber"] = str(self.number)
+                val["_partnerFixedDescription"] = False
+                val["_partnerServiceItem"] = False
+                val["_partnerShowUnitQty"] = True
+                val["_partnerRowType"] = 0
+                val["_partnerRowSelected"] = False
+                val["_partnerOldQty"] = 0
+                val["_lineType"] = 1
+                val["_project"] = None
+                arrayofdocumentlinefullmodel.append(val)
+
+        inv_dict = {
+            "clientHandle" : client_handle, 
+            "documentFM" : documentfullmodel, 
+            "documentLinesFM" : arrayofdocumentlinefullmodel, 
+            "globalNumbers" : True, 
+            "userId" : 0, 
+            "emailPDFDoc" : True, 
+            "emailAddress" : ""
+        }
+
+        try:
+            url = "http://letsap.dedicated.co.za/Letsap.Framework.WebHost/KMQAPIService.svc/GetTestConnection/"+str(client_handle)
+            conn = requests.get(url)
+            if conn.status_code == 200:
+                resp_inv_create = requests.post(url='http://letsap.dedicated.co.za/Letsap.Framework.WebHost/KMQAPIService.svc/SaveDocument', headers=headers,json=my_dict2(inv_dict))
+                inv_created = True
+                resp_inv_create_content = json.loads(resp_inv_create.content)
+                if resp_inv_create_content.get('SaveDocumentResult') and resp_inv_create_content.get('SaveDocumentResult') == inv_number:
+                    self.created_at_pastel = True
+
+                self.message_post(body=resp_inv_create_content)
+                if not self.created_at_pastel:
+                    raise Warning(
+                                  _("Cannot Validate Invoice: %s")% (resp_inv_create_content.get('SaveDocumentResult')))
+
+        except Exception,e:
+            print "Exception is:",e
+            self.message_post(body=e)
+            raise Warning(
+                          _("Cannot Validate Invoice: %s")% (resp_inv_create_content.get('SaveDocumentResult')))
+
+        return res 
 
 
     #Jagadeesh start
@@ -407,8 +535,7 @@ class AccountInvoice(models.Model):
 
 	#total_brands_amount = sum(rec.total_cost for rec in self.account_product_branding_ids) #Jagadeesh
         self.amount_untaxed = sum(line.price_subtotal for line in self.invoice_line_ids)#+total_brands_amount #Jagadeesh
-
-        self.amount_tax = (self.amount_untaxed * 14) / 100 #sum(line.amount for line in self.tax_line_ids)
+        self.amount_tax = sum(line.amount for line in self.tax_line_ids)
         self.amount_total = self.amount_untaxed + self.amount_tax
         amount_total_company_signed = self.amount_total
         amount_untaxed_signed = self.amount_untaxed
@@ -447,7 +574,6 @@ class AccountInvoice(models.Model):
 
 
 
-
 class AccountProductBrandingLines(models.Model):
         _name = 'account.product.branding.lines'
 
@@ -470,15 +596,12 @@ class AccountPayment(models.Model):
     @api.multi
     def post(self):
 	user = self.env['res.users'].browse(self._context['uid'])
-
-	group = self.env['res.groups'].search([('name', '=', 'Payment Registration Group')])
-        #user = self.env['res.users'].browse(self._uid)
+        group = self.env['res.groups'].search([('name', '=', 'Payment Registration Group')])
         if user not in group.users:
-        	raise UserError(_('Only users from Payment Registration Group are allowed to process payment.'))
-
+                raise UserError(_('Only users from Payment Registration Group are allowed to process payment.'))
 
         res = super(AccountPayment,self).post()
-        """inv_obj = self.env['account.invoice'].browse(self._context.get('active_id'))
+        inv_obj = self.env['account.invoice'].browse(self._context.get('active_id'))
         sale_obj = self.env['sale.order'].search([('name','=',inv_obj.origin)])
         if sale_obj.partner_id.account_type == 'cod' and inv_obj.state == 'paid':
             stock_picks = self.env['stock.picking'].search([('group_id','=',sale_obj.procurement_group_id.id)])
@@ -493,10 +616,10 @@ class AccountPayment(models.Model):
         client_data = {"username" : "Daniel"}
         client_data_resp = requests.post(url='http://letsap.dedicated.co.za/portmapping/CompanyList.asmx/GetCompanyList', headers=headers,  json=client_data)
         client_data_res = json.loads(client_data_resp.content)
-	#if self.payment_type == 'outbound':
-        #	ref_amount = float(-(self.amount))
-	#else:
-	#	ref_amount = float(self.amount)
+	if inv_obj.type in ['out_invoice']:
+        	ref_amount = float(-(self.amount))
+	else:
+		ref_amount = float(self.amount)
 
         for data in client_data_res['d']:
                 if data['Alias'] == 'PASTELCONNECT':
@@ -542,7 +665,7 @@ class AccountPayment(models.Model):
                 "AccNumber" : str(inv_obj.partner_id.parent_id and inv_obj.partner_id.parent_id.ref or inv_obj.partner_id.ref),
                 "Ref" : "", #str(self.communication),
                 "Description" : str(inv_obj.partner_id.parent_id and inv_obj.partner_id.parent_id.name or inv_obj.partner_id.name), #str(self.name),
-                "Amount" : float(self.amount),
+                "Amount" : float(ref_amount),
                 "TaxType" : 0,
                 "TaxAmount" : 0,
                 "OIType" : "",
@@ -565,7 +688,7 @@ class AccountPayment(models.Model):
                 "AccNumber" : str(inv_obj.partner_id.parent_id and inv_obj.partner_id.parent_id.ref or inv_obj.partner_id.ref),
                 "Ref" : "", #str(self.communication),
                 "Description" : str(inv_obj.partner_id.parent_id and inv_obj.partner_id.parent_id.name or inv_obj.partner_id.name), #str(self.name),
-                "Amount" : float(self.amount),
+                "Amount" : float(ref_amount),
                 "TaxType" : 0,
                 "TaxAmount" : 0,
                 "OIType" : "",
@@ -579,39 +702,33 @@ class AccountPayment(models.Model):
                 }
         try:
             if inv_obj.type in ['in_invoice']:
-                #resp = requests.post(url='http://letsap.dedicated.co.za/Letsap.Framework.WebHost/KMQAPIService.svc/ImportGLBatch', headers=headers,json=my_dict2(data_send))
-		print "pass"
+                resp = requests.post(url='http://letsap.dedicated.co.za/Letsap.Framework.WebHost/KMQAPIService.svc/ImportGLBatch', headers=headers,json=my_dict2(data_send))
 
             elif inv_obj.type in ['out_invoice','out_refund']:
-            	#resp = requests.post(url='http://letsap.dedicated.co.za/Letsap.Framework.WebHost/KMQAPIService.svc/ImportGLBatch', headers=headers,json=my_dict2(data_receive))
-		print "pass"
+            	resp = requests.post(url='http://letsap.dedicated.co.za/Letsap.Framework.WebHost/KMQAPIService.svc/ImportGLBatch', headers=headers,json=my_dict2(data_receive))
 
         except Exception,e:
-                print "Exception is:",e"""
+                print "Exception is:",e
 
         return res
 
-
 class AccountPaymentTerm(models.Model):
-        _inherit = 'account.payment.term'
-        _order = 'term_value asc'
-        @api.multi
-        def _get_term_value(self):
-                if self.name:
-                        if self.name == '30':
-                                self.term_value = 30
-                        if self.name == '60':
+	_inherit = 'account.payment.term'
+	_order = 'term_value asc'
+	@api.multi
+	def _get_term_value(self):
+		if self.name:
+			if self.name == '30':
+				self.term_value = 30
+			if self.name == '60':
                                 self.term_value = 60
-                        if self.name == '90':
+			if self.name == '90':
                                 self.term_value = 90
-                        if self.name == '120':
+			if self.name == '120':
                                 self.term_value = 120
-                        if self.name == 'Immediate Payment':
+			if self.name == 'Immediate Payment':
                                 self.term_value = 0
-        term_value = fields.Integer(compute ='_get_term_value',string='Term Value')                                                
-
-
-
+	term_value = fields.Integer(compute ='_get_term_value',string='Term Value')
 
 
 

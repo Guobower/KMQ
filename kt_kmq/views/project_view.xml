@@ -125,6 +125,18 @@
 		</field>
 	</record>
 
+	<record id="product_category_form_view_inh" model="ir.ui.view">
+                <field name="name">product.category.form</field>
+                <field name="model">product.category</field>
+                <field name="inherit_id" ref="product.product_category_form_view"/>
+                <field name="arch" type="xml">
+                        <xpath expr="//form/sheet/group[@name='first']/field[@name='parent_id']" position="after">
+                                <field name="pastel_code"/>
+                        </xpath>
+                </field>
+        </record>
+
+
 	<record id="signature_request_template_view_form_inherit" model="ir.ui.view">
                 <field name="name">signature.request.template.form</field>
                 <field name="model">signature.request.template</field>
@@ -327,12 +339,5 @@
         </record>
 
 <menuitem name="SMS Template " id="menu_smsclient_administration_sms_server_template" parent="smsclient.menu_smsclient_administration_server" action="action_sms_smsclient_template_tree"/>
-
-    <!-- Make Default Tree view in project Menu -->
-    <record id="project.open_view_project_all" model="ir.actions.act_window">
-        <field name="name">Project</field>
-        <field name="view_mode">tree,kanban,form</field>
-    </record>
-
 </data>
 </odoo>

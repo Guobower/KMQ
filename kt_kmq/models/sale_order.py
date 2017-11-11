@@ -12,27 +12,27 @@ import StringIO
 import cStringIO
 import base64
 import requests
-# import xmltodict
+import xmltodict
 from odoo.http import request
 
 class ResUsers(models.Model):
-	_inherit = 'res.users'
-	user_pastel_id = fields.Integer('User Pastel ID')
-	
-	@api.model
-	def create(self,vals):
-		print "inside create userrrrrrrr"
-		res = super(ResUsers,self).create(vals)
-		auth_users = []
+        _inherit = 'res.users'
+        user_pastel_id = fields.Integer('User Pastel ID')
+
+        @api.model
+        def create(self,vals):
+                res = super(ResUsers,self).create(vals)
+                auth_users = []
                 andre_user = self.env['res.users'].search([('login','=','andre@kmq.co.za')])
                 if andre_user:
                         andre_user_id = andre_user.id
                         auth_users.append(andre_user_id)
 
-                if self._uid not in auth_users:
+                if self._uid not in auth_users: 
                         raise UserError(_('Only Andre has been authorized to create users.'))
+    
+                return res
 
-		return res
 
 class PurchaseOrder(models.Model):
     _inherit = 'purchase.order'
@@ -87,7 +87,6 @@ class SaleOrderLine(models.Model):
 
 	@api.onchange('product_id','add_product_branding')
         def onchange_add_product_binding(self):
-		print "inside 111111111111"
                 #branding_price_obj = self.env['branding.price'].search([('product_id','=',self.product_id.product_tmpl_id.id)])
                 locations = []
 		branding_locations = []
@@ -104,32 +103,47 @@ class SaleOrderLine(models.Model):
                 self.product_branding_ids = sorted(locations)
 
 	@api.multi
-	def write(self,vals):
-		ctx = {'lang': 'en_US', 'params': {'menu_id': 88, 'view_type': 'form', '_push_me': False, 'action': 263, 'model': 'sale.order', 'id': self.id}, 'hide_sale': True, 'tz': 'Africa/Johannesburg', 'uid': 1}
-                self = self.with_context(ctx)
-		print self,'selffffffffffff'
-		print self._context
+	def write22222(self,vals):
+		"""auth_users = []
+		auth_users.append(1)
+		andre_user = self.env['res.users'].search([('login','=','andre@kmq.co.za')])
+		if andre_user:
+			andre_user_id = andre_user.id
+			auth_users.append(andre_user_id)
+		nancy_user = self.env['res.users'].search([('login','=','nancy@kmq.co.za')])
+	        if nancy_user:
+        	        nancy_user_id = nancy_user.id
+                	auth_users.append(nancy_user_id)
+
+		daniel_user = self.env['res.users'].search([('login','=','daniel@kmq.co.za')])
+                if daniel_user:
+                        daniel_user_id = daniel_user.id
+                        auth_users.append(daniel_user_id)
+
+	        if self._uid not in auth_users:
+        	        raise UserError(_('You are not authorized to updated quote lines.'))
+
         	if request.session.has_key('from_quote') and request.session['from_quote']:
-                	vals = {}
-		print vals,'valssssssssss at order lineeeee222222222222222'
-	        return super(SaleOrderLine,self).write(vals)
-			
+                	vals = {}"""
+		res = super(SaleOrderLine,self).write22222222(vals)
+		return res	
 		
 
 class SaleOrder(models.Model):
 	_inherit = "sale.order"
 
-	delivery_hub_id = fields.Many2one('delivery.hub',string="Delivery Hub")
-	courier_company_id = fields.Many2one('courier.company',string="Client Courier Company")
-	show_delivery_hub = fields.Boolean('Show Delivery Hub ?',default=False)
-	show_courier_company = fields.Boolean('Show Courier Company ?',default=False)
 
-	@api.onchange('carrier_id')
-	def onchange_carrier_id(self):
-	    if self.carrier_id.name == 'KMQ Courier':
-		self.show_delivery_hub = True
-	    else:
-		self.show_delivery_hub = False
+        delivery_hub_id = fields.Many2one('delivery.hub',string="Delivery Hub")
+        courier_company_id = fields.Many2one('courier.company',string="Client Courier Company")
+        show_delivery_hub = fields.Boolean('Show Delivery Hub ?',default=False)
+        show_courier_company = fields.Boolean('Show Courier Company ?',default=False)
+
+        @api.onchange('carrier_id')
+        def onchange_carrier_id(self):
+            if self.carrier_id.name == 'KMQ Courier':
+                self.show_delivery_hub = True
+            else:
+                self.show_delivery_hub = False
 
             if self.carrier_id.name == 'Client Courier':
                 self.show_courier_company = True
@@ -156,6 +170,12 @@ class SaleOrder(models.Model):
 	        else:
 			self.has_branding = False
 
+        def _get_partner_code(self):
+        	for data in self:
+                	data.partner_code = data.partner_id and data.partner_id.ref or ''
+
+
+        partner_code = fields.Char(compute='_get_partner_code',string='Partner Code')
 	add_product_branding = fields.Boolean('Add Branding')
 	product_branding2_ids = fields.One2many('product.branding.lines','sale_order_id',string="Product Branding",compute='_get_branding')
 	partner_id = fields.Many2one('res.partner', string='Customer', readonly=True, states={'draft': [('readonly', False)], 'sent': [('readonly', False)]}, required=True, change_default=True, index=True, track_visibility='always',default=lambda self: self.env.user.partner_id)
@@ -179,7 +199,8 @@ class SaleOrder(models.Model):
 	alt_state_id = fields.Many2one("res.country.state", 'State')
 	alt_country_id = fields.Many2one('res.country', 'Country')
 	partner_id = fields.Many2one('res.partner', string='Customer', readonly=True, states={'draft': [('readonly', False)], 'sent': [('readonly', False)]}, required=True, index=True, track_visibility='always')
-
+	#Jagadeesj end
+	#Jagadeesh JUN 06 commented to remove proforma functionality
         @api.multi
         def open_quotation2(self):
                 self.ensure_one()
@@ -192,10 +213,9 @@ class SaleOrder(models.Model):
                 }
 
 
+
 	@api.multi
 	def write(self,vals):
-		ctx = {'lang': 'en_US', 'params': {'menu_id': 88, 'view_type': 'form', '_push_me': False, 'action': 263, 'model': 'sale.order', 'id': self.id}, 'hide_sale': True, 'tz': 'Africa/Johannesburg', 'uid': 1}
-		self = self.with_context(ctx)
 		if vals.has_key('state') and vals['state'] == 'sale':
 			email_to = self.user_id and self.user_id.partner_id.email or ''
 			body_html = ("""Dear %s ,<br/><br/>This is an email to notify you that the sale order %s has been confirmed.<br/><br/>Kind Regards<br/>""")% (self.user_id.name,self.name)
@@ -203,14 +223,13 @@ class SaleOrder(models.Model):
                         mail_vals = {
                              'email_from':'info@kmqpromotions.com',
                              'email_to': email_to,
-                             'email_cc':'raj@strategicdimensions.co.za,thabo@strategicdimensions.co.za',
+                             #'email_cc':'raj@strategicdimensions.co.za,thabo@strategicdimensions.co.za',
                              'subject':'Sale order confirmation notification',
                              'body_html':body_html
                                 }
                         res2 = self.env['mail.mail'].sudo().create(mail_vals)
         	if request.session.has_key('from_quote') and request.session['from_quote']:
                 	vals = {}
-		print vals,'vals at order writeeeeeeeeeeeeeeeeeeee'
 	        res = super(SaleOrder,self).write(vals)
         	return res
 
@@ -279,7 +298,6 @@ class SaleOrder(models.Model):
                     stock_picks = self.env['stock.picking'].search([('group_id','=',order.procurement_group_id.id)])
                     for stock in stock_picks:
 			stock.carrier_id = order.carrier_id.id #Jagadeesh oct 23
-			stock.has_branding = order.has_branding
                         if stock.state in ['confirmed','assigned']:
                             stock.state = 'waiting'
 
@@ -288,6 +306,7 @@ class SaleOrder(models.Model):
 			if project_id:
 				self.write({'associated_project':project_id and project_id.id or False})
 				#project_id.write({'partner_id':self.partner_id and self.partner_id.id or False}) #Jagadeesh commneted
+		return super(SaleOrder,self).action_confirm()
 
 
         #Jagadeesh JUN08 start 
@@ -374,8 +393,7 @@ class SaleOrder(models.Model):
                     'user_id': self.user_id and self.user_id.id,
                     'team_id': self.team_id.id,
                     'date_invoice' : datetime.now().date(),
-                    'pricelist_id' : self.pricelist_id and self.pricelist_id.id or False,
-		    'has_branding' : self.has_branding,
+                    'pricelist_id' : self.pricelist_id and self.pricelist_id.id or False
                 }
                 return invoice_vals
 
@@ -389,22 +407,23 @@ class SaleOrder(models.Model):
             :returns: list of created invoices
             """
             inv_obj = self.env['account.invoice']
+	    ir_property_obj = self.env['ir.property']
             precision = self.env['decimal.precision'].precision_get('Product Unit of Measure')
             invoices = {}
             references = {}
 	    branding_vals_item = {}
 	    branding_vals_setup = {}
 	    lt = []
-
-	    account_id = False
-            if self.product_id.id:
-            	account_id = self.product_id.property_account_income_id.id
-            if not account_id:
-	            inc_acc = ir_property_obj.get('property_account_income_categ_id', 'product.category')
-        	    account_id = order.fiscal_position_id.map_account(inc_acc).id if inc_acc else False
-	
 	    tax_ids = []
+	    att = ''
             for order in self:
+	    	account_id = False
+	        if self.product_id.id:
+        		account_id = self.product_id.property_account_income_id.id
+	        if not account_id:
+        	        inc_acc = ir_property_obj.get('property_account_income_categ_id', 'product.category')
+                	account_id = order.fiscal_position_id.map_account(inc_acc).id if inc_acc else False
+
 		branding_items_vals = [] 
                 group_key = order.id if grouped else (order.partner_invoice_id.id, order.currency_id.id)
                 for line in order.order_line.sorted(key=lambda l: l.qty_to_invoice < 0):
@@ -428,7 +447,7 @@ class SaleOrder(models.Model):
 
                     elif group_key in invoices:
                         vals = {}
-			vals['user_id'] = order.partner_id.user_id and order.partner_id.user_id.id or False
+			vals['user_id'] = order.user_id and order.user_id.id or False
 					
                         if order.name not in invoices[group_key].origin.split(', '):
                             vals['origin'] = invoices[group_key].origin + ', ' + order.name
@@ -442,18 +461,15 @@ class SaleOrder(models.Model):
 
 		    #Jagadeesh added 
 		    ''' to update branding items'''
-		    product_brand_items = self.env['product.branding.lines'].search([('sale_order_line_id','=',line.id)])
+		    if line.add_product_branding:
+		        product_brand_items = self.env['product.branding.lines'].search([('sale_order_line_id','=',line.id)])
 		    
-		    for brand in product_brand_items:
-		        """branding_vals = {'product_id':brand.product_id.id,'branding_location':brand.branding_location.id,
-					      'branding_method':brand.branding_method.id,'color_variant':brand.color_variant.id,
-					      'size_variant':brand.size_variant.id,'setup_cost':brand.setup_cost,
-					      'item_cost':brand.item_cost,'total_cost':brand.total_cost
-					    }"""
-			if brand.setup_cost:
+		        for brand in product_brand_items:
+			    if brand.setup_cost >= 0.00:
 				location = brand.branding_location.name
-				location_name = location.split(" ")[1]
-				location_code = 'B0SP'+location_name
+				if location:
+					location_name = location.split(" ")[1]
+					location_code = 'B0SP'+location_name
 				if brand.color_variant:
 					att = brand.color_variant.name
 				if brand.size_variant:
@@ -466,7 +482,7 @@ class SaleOrder(models.Model):
                                               'account_id':account_id}
 				lt.append(branding_vals_setup)
 
-			if brand.item_cost:
+			    if brand.item_cost >= 0.00:
 
 				prod_code = prod_desc = ''
 				location = brand.branding_location.name
@@ -499,6 +515,11 @@ class SaleOrder(models.Model):
                                 elif brand.branding_method.name == 'Doming':
                                         prod_code = 'DOME'
                                         prod_desc = 'KMQ Doming for'+ ' '+brand.product_id.name+"-"+location_code+"-"+att
+
+				elif brand.branding_method.name == 'Stickers':
+                                        prod_code = 'STCKR'
+                                        prod_desc = 'KMQ Stickers for'+ ' '+brand.product_id.name+"-"+location_code+"-"+att
+
 
                                 branding_vals_item = {'product_id':prod_id.id,'name':prod_desc,
                                               'quantity':line.product_uom_qty,'price_unit':brand.item_cost,
@@ -578,18 +599,19 @@ class ProductBrandingLines(models.Model):
 
 	#Jagadeesh 
 	@api.multi
-	def write(self,vals):
-	    print self,'selffffffff'
-	    print vals,'valssssss'
-	    return super(ProductBrandingLines,self).write(vals)
-
-	@api.multi
 	@api.onchange('branding_location')
 	def onchange_branding_location(self):
-	     print "onchange 22222222222222222"
 	     self.product_id = self.sale_order_line_id.product_id.id
 	     self.sale_order_id = self.sale_order_line_id.order_id.id
 	#Jagadeesh end
+
+
+	@api.multi
+        @api.onchange('setup_cost','item_cost')
+        def onchange_costs(self):
+             self.total_cost = (self.sale_order_line_id.product_uom_qty * self.item_cost) + self.setup_cost
+             #self.sale_order_id = self.sale_order_line_id.order_id.id
+
 
 
 	#Jagadeesh JUN08 start
@@ -651,7 +673,6 @@ class ProductBrandingLines(models.Model):
 	                	                branding_price_ids_on_colors_lst.append(rec.id)
 					if branding_price_ids_on_colors_lst:
 						branding_price_ids_on_limits = self.env['branding.price'].search([('id','in',branding_price_ids_on_colors_lst),('min_qty','<=',self.sale_order_line_id.product_uom_qty),('max_qty','>=',self.sale_order_line_id.product_uom_qty)])
-						print branding_price_ids_on_limits,'branding_price_ids_on_limits=========='
                                                 if branding_price_ids_on_limits:
                                                         #for rec in branding_price_ids_on_limits:
                                                         self.setup_cost = branding_price_ids_on_limits.setup_cost or 0.0
@@ -697,16 +718,18 @@ class QuotaionCancel(models.Model):
             sale_order_obj.required_reason = self.required_reason
 
             sale_order_obj.state = 'cancel'
-	    #Jagadeesh oct 23
-	    ''' to cancel the delivery orders '''
-	    ref = self.env['ir.sequence'].search([('name','=','Primary WarehouseSequence picking')],limit=1)
-	    warehouse = self.env['stock.warehouse'].search([('name','=','Main Warehouse Cosmic Street')],limit=1)
-	    pick_type = self.env['stock.picking.type'].search([('name','=','Pick'),('sequence_id','=',ref.id),('warehouse_id','=',warehouse.id)],limit=1)
+            #Jagadeesh oct 23
+            ''' to cancel the delivery orders '''
+            ref = self.env['ir.sequence'].search([('name','=','Primary WarehouseSequence picking')],limit=1)
+            warehouse = self.env['stock.warehouse'].search([('name','=','Main Warehouse Cosmic Street')],limit=1)
+            pick_type = self.env['stock.picking.type'].search([('name','=','Pick'),('sequence_id','=',ref.id),('warehouse_id','=',warehouse.id)],limit=1)
 
-	    stock_picks = self.env['stock.picking'].search([('group_id','=',sale_order_obj.procurement_group_id.id),('picking_type_id','=',pick_type.id)])
-	    for stock in stock_picks:
-		stock.action_cancel()
-	    #Jagadeesh oct 23 end
+            stock_picks = self.env['stock.picking'].search([('group_id','=',sale_order_obj.procurement_group_id.id),('picking_type_id','=',pick_type.id)])
+            for stock in stock_picks:
+                stock.action_cancel()
+            #Jagadeesh oct 23 end
+
+
         return True
 
 #Jagadeesh start
@@ -714,7 +737,7 @@ class SaleAdvancePaymentInv(models.TransientModel):
     _inherit = 'sale.advance.payment.inv'
 
     @api.multi
-    def create_invoicessssss(self): #no need of this functionality
+    def create_invoices(self):
         res = super(SaleAdvancePaymentInv,self).create_invoices()
         sale_orders = self.env['sale.order'].browse(self._context.get('active_ids', []))
         for order in sale_orders:
@@ -725,7 +748,6 @@ class SaleAdvancePaymentInv(models.TransientModel):
         return res
 #Jagadeesh end
 
-
 class DeliveryHub(models.Model):
     _name = 'delivery.hub'
 
@@ -734,5 +756,5 @@ class DeliveryHub(models.Model):
 class CourierCompany(models.Model):
     _name = 'courier.company'
 
-    name = fields.Char('Name')    
+    name = fields.Char('Name')
 

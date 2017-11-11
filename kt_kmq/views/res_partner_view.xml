@@ -5,27 +5,19 @@
             <field name="model">res.partner</field>
             <field name="inherit_id" ref="base.view_partner_form"/>
             <field name="arch" type="xml">
-<!-- 		<xpath expr="//group[@name='add']/field[@name='email']" position="after"> -->
-<!-- 			<field name="fax"/> -->
-<!-- 		</xpath> -->
+		<!--<xpath expr="//group[@name='add']/field[@name='email']" position="after">
+			<field name="fax"/>
+		</xpath>-->
                 <field name="email" position="after">
-                    <field name="fax"/>
                     <field name="payment_deposit"/>	
 		    <field name="created_at_pastel"/>
                 </field>
-		<!--<xpath expr="//div[@name='button_box']" position="after">-->
 		<xpath expr="//sheet" position="before">
-		    <header>
-		        <button name="block_account" type="object" class="oe_highlight" string="Block Account" attrs="{'invisible':[('account_blocked','=',True)]}"/><br/><br/>
-		        <button name="unblock_account"  type="object" class="oe_highlight" string="Unblock Account" attrs="{'invisible':[('account_blocked','=',False)]}"/>
-		    </header>
-		</xpath>
-		<!--<xpath expr="//sheet" position="inside">
-		<header>
-		    <button name="block_account" string="Block Account"/>
-                    <button name="unblock_account" string="Unblock Account"/>
-		</header>
-		</xpath>-->
+                    <header>
+                        <button name="block_account" type="object" class="oe_highlight" string="Block Account" attrs="{'invisible':[('account_blocked','=',True)]}"/><br/><br/>
+                        <button name="unblock_account"  type="object" class="oe_highlight" string="Unblock Account" attrs="{'invisible':[('account_blocked','=',False)]}"/>
+                    </header>
+                </xpath>
             </field>
         </record>
 
@@ -72,8 +64,6 @@
             <field name="name">Unblock Customer</field>
             <field eval="'ir.actions.server,%d'%action_unblock" name="value"/>
         </record>
-        <!-- inherited pos session form -->
-
 
     </data>
 </odoo>

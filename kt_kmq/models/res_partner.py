@@ -12,7 +12,7 @@ import StringIO
 import cStringIO
 import base64
 import requests
-# import xmltodict
+import xmltodict
 epoch = datetime.utcfromtimestamp(0)
 
 def unix_time_millis(dt):
@@ -40,29 +40,13 @@ class ResPartner(models.Model):
 
     @api.multi
     def action_partner_unblock(self,ids):
-	print "inside action_partner_unblock",ids
-	for part_id in ids:
-		self._cr.execute("""UPDATE res_partner set account_blocked=False where id = %s""",(part_id,))
-	#return True
+        self._cr.execute("""UPDATE res_partner set account_blocked=False where id = %s""",(ids[0],))
 
-
-    @api.multi
-    def block_account(self):
-	
-	print 'block=========='
-	group_ids = self.env['res.groups'].search([('name', '=', 'Allow Blocking Accounts')]).users.ids
-	if self.env.uid not in group_ids:
-	    raise ValidationError("You are not allowed to Block/Unblock accounts")
-
-	
-	self.account_blocked = True
-	#self.update_account_blocking(block=True)
-	return True
 
     @api.multi
     def update_account_blocking(self,block):
-    
-	headers = {"Content-type": "application/json"}
+
+        headers = {"Content-type": "application/json"}
         client_data = {"username" : "Daniel"}
         client_data_resp = requests.post(url='http://letsap.dedicated.co.za/portmapping/CompanyList.asmx/GetCompanyList', headers=headers,  json=client_data)
         client_data_res = json.loads(client_data_resp.content)
@@ -73,42 +57,55 @@ class ResPartner(models.Model):
         final_data = json.loads(partner_data_resp.content)
         #if final_data['GetCustomerResult']['_partnerAddress'] and final_data['GetCustomerResult']['_partnerAddress']:
         #        create_date = final_data['GetCustomerResult']['_partnerAddress']['_createDate']
-		
+
         #else:
         #        create_date = final_data['GetCustomerResult']['_createDate']
-	if final_data.has_key('GetCustomerResult'):
+        if final_data.has_key('GetCustomerResult'):
             final_data['GetCustomerResult']['_blocked'] = block
-            test = block
-        elif final_data.has_key('GetSupplierResult'):
-            final_data['GetSupplierResult']['_blocked'] = block
-            test = block
+	    test = block
+	elif final_data.has_key('GetSupplierResult'):
+	    final_data['GetSupplierResult']['_blocked'] = block
+	    test = block
 
         if self.company_type == 'company' and self.customer:
             data = {"clientHandle": str(client_handle),"Customer":final_data['GetCustomerResult']}
         elif self.company_type == 'company' and self.supplier:
             data = {"clientHandle": str(client_handle),"supplier":final_data['GetSupplierResult']}
 
-
-	try:
+        try:
                 url = "http://letsap.dedicated.co.za/Letsap.Framework.WebHost/KMQAPIService.svc/GetTestConnection/"+str(client_handle)
                 conn = requests.get(url)
                 if conn.status_code == 200:
-		     save_customer = requests.post(url='http://letsap.dedicated.co.za/Letsap.Framework.WebHost/KMQAPIService.svc/SaveCustomer', headers=headers,json=mydict(data))
-	except Exception,e:
-                print "Exception is:",e
+                     save_customer = requests.post(url='http://letsap.dedicated.co.za/Letsap.Framework.WebHost/KMQAPIService.svc/SaveCustomer', headers=headers,json=mydict(data))
+        except Exception,e:
+	    print 'exp==========',e
+	    pass
+
+        return True
+
+    @api.multi
+    def block_account(self):
+
+        group_ids = self.env['res.groups'].search([('name', '=', 'Allow Blocking Accounts')]).users.ids
+        if self.env.uid not in group_ids:
+            raise ValidationError("You are not allowed to Block/Unblock accounts")
 
 
-	return True
+        self.account_blocked = True
+        self.update_account_blocking(block=True)
+        return True
 
     @api.multi
     def unblock_account(self):
-        print 'unblock=========='
-	group_ids = self.env['res.groups'].search([('name', '=', 'Allow Blocking Accounts')]).users.ids
+        group_ids = self.env['res.groups'].search([('name', '=', 'Allow Blocking Accounts')]).users.ids
         if self.env.uid not in group_ids:
             raise ValidationError("You are not allowed to Block/Unblock accounts")
-	self.account_blocked = False
-	#self.update_account_blocking(block=False)
+        self.account_blocked = False
+        self.update_account_blocking(block=False)
         return True
+
+
+
 
 
     @api.multi
@@ -125,21 +122,18 @@ class ResPartner(models.Model):
 		existing_ref = self.search([('ref','=',self.ref)])
 		if existing_ref:
 			raise UserError(_('Entered reference number already exist.'))
-    @api.model
-    def create(self,vals):
-	if self._context.has_key('default_customer') or self._context.has_key('default_supplier') or self._context.has_key('search_default_customer') or self._context.has_key('search_default_supplier'):
-		group = self.env['res.groups'].search([('name', '=', 'Accounts(Customers) Creation group')])
-		user = self.env['res.users'].browse(self._uid)
-        	if user not in group.users:
-	        	raise UserError(_('Only users from Accounts(Customers) Creation group are allowed to create customer.'))
-
-	res = super(ResPartner,self).create(vals)
-	return res
 		
 
-    """@api.model
+    @api.model
     def create(self,vals):
         #if vals.has_key('parent_id') and vals['parent_id'] == False:
+
+	if self._context.has_key('default_customer') or self._context.has_key('default_supplier') or self._context.has_key('search_default_customer') or self._context.has_key('search_default_supplier'):
+                group = self.env['res.groups'].search([('name', '=', 'Accounts(Customers) Creation group')])
+                user = self.env['res.users'].browse(self._uid)
+                if user not in group.users:
+                        raise UserError(_('Only users from Accounts(Customers) Creation group are allowed to create customer.'))
+
        	salesman_code = False
 	if not vals.has_key('child_ids') and not vals['parent_id']:
 		raise UserError(_('Please add a contact for the customer.'))
@@ -171,6 +165,14 @@ class ResPartner(models.Model):
 	            postal_state = state_name
         	    postal_country = country_name
                     postal_zip1 = val[2]['zip']
+
+		    if not postal_street:postal_street = ' '
+                    if not postal_street2:postal_street2 = ' '
+                    if not postal_city:postal_city = ' '
+                    if not postal_zip1:postal_zip1 = ' '
+                    if not postal_state:postal_state = ' '
+                    if not postal_country:postal_country = ' '
+
 		    postal_add = postal_street+","+ postal_street2+","+ postal_city+","+ postal_state+","+ postal_country+","+ postal_zip1
 		    
                 if val[2]['type']=='delivery':
@@ -184,12 +186,20 @@ class ResPartner(models.Model):
                     delivery_state = state_name
                     delivery_country = country_name
                     delivery_zip1 = val[2]['zip']
+
+		    if not delivery_street:delivery_street = ' '
+                    if not delivery_street2:delivery_street2 = ' '
+                    if not delivery_city:delivery_city = ' '
+                    if not delivery_zip1:delivery_zip1 = ' '
+                    if not delivery_state:delivery_state = ' '
+                    if not delivery_country:delivery_country = ' '
+
                     delev_add = delivery_street+","+ delivery_street2+","+ delivery_city+","+ delivery_state+","+ delivery_country+","+ delivery_zip1
 		if val[2]['type']=='contact':
 		    cell = val[2]['mobile']
 		    contact = val[2]['name']
 		    email = val[2]['email']
-		    fax = val[2]['fax']
+		    ##fax = val[2]['fax']
 		    telephone = val[2]['phone']
                     
 	######
@@ -406,7 +416,14 @@ class ResPartner(models.Model):
 		print "Exception is in createeeeeeeee:",e
 	return super(ResPartner,self).create(vals)
 
-    def write(self,vals):
+    @api.multi
+    def write(self,vals): 
+        if vals.has_key('ref') and self.ref:
+                raise UserError(_('You cannot change the Internal Reference for a customer.'))
+        return super(ResPartner,self).write(vals)
+
+
+    def writeeeeeeeee(self,vals): #Jagadeesh in activated pastel update as per new CR
 	if vals.has_key('ref') and self.ref:
 		raise UserError(_('You cannot change the Internal Reference for a customer.'))
 	#res = super(ResPartner,self).write(vals)
@@ -416,6 +433,16 @@ class ResPartner(models.Model):
        	client_data_resp = requests.post(url='http://letsap.dedicated.co.za/portmapping/CompanyList.asmx/GetCompanyList', headers=headers,  json=client_data)
         client_data_res = json.loads(client_data_resp.content)
        	client_handle = client_data_res['d'][0]['ClientHandle'] 
+
+	requestData = {"clientHandle":str(client_handle),"customerID":str(self.ref)}
+        partner_data_resp = requests.post(url='http://letsap.dedicated.co.za/Letsap.Framework.WebHost/KMQAPIService.svc/GetCustomer', headers=headers,  json=requestData)
+        final_data = json.loads(partner_data_resp.content)
+	if final_data['GetCustomerResult']['_partnerAddress'] and final_data['GetCustomerResult']['_partnerAddress']:
+	        create_date = final_data['GetCustomerResult']['_partnerAddress']['_createDate']
+	else:
+		create_date = final_data['GetCustomerResult']['_createDate']
+
+
 	a = datetime.strptime(str(datetime.now().date()), '%Y-%m-%d')
         a = int(unix_time_millis(a))
 	if vals.has_key('user_id') and vals['user_id']:
@@ -429,29 +456,47 @@ class ResPartner(models.Model):
 	if vals.has_key('child_ids') and vals['child_ids']:
             for val in vals['child_ids']:
                 if val[2] and val[2].has_key('type') and val[2]['type']=='invoice':
+		    state_name , country_name = ' ',' '
                     if val[2].has_key('state_id'):
                         state_name = self.env['res.country.state'].search([('id','=',val[2]['state_id'])]).name
                     if val[2].has_key('country_id'):
                         country_name = self.env['res.country'].search([('id','=',val[2]['country_id'])]).name
-                    postal_street = val[2]['street']
-                    postal_street2 = val[2]['street2']
-                    postal_city = val[2]['city']
+                    postal_street = val[2]['street'] or ' '
+                    postal_street2 = val[2]['street2'] or ' '
+                    postal_city = val[2]['city'] or ' '
                     postal_state = state_name
                     postal_country = country_name
-                    postal_zip1 = val[2]['zip']
+                    postal_zip1 = val[2]['zip'] or ' '
+		    if not postal_street:postal_street = ' '
+                    if not postal_street2:postal_street2 = ' '
+                    if not postal_city:postal_city = ' '
+                    if not postal_zip1:postal_zip1 = ' '
+		    if not postal_state:postal_state = ' '
+                    if not postal_country:postal_country = ' '
+
+
                     postal_add = postal_street+","+ postal_street2+","+ postal_city+","+ postal_state+","+ postal_country+","+ postal_zip1,
 
                 if val[2] and val[2].has_key('type') and val[2]['type']=='delivery':
+		    state_name , country_name = ' ',' '
                     if val[2].has_key('state_id'):
                         state_name = self.env['res.country.state'].search([('id','=',val[2]['state_id'])]).name
                     if val[2].has_key('country_id'):
                         country_name = self.env['res.country'].search([('id','=',val[2]['country_id'])]).name
-                    delivery_street = val[2]['street']
-                    delivery_street2 = val[2]['street2']
-                    delivery_city = val[2]['city']
+                    delivery_street = val[2]['street'] or ' '
+                    delivery_street2 = val[2]['street2'] or ' '
+                    delivery_city = val[2]['city'] or ' '
                     delivery_state = state_name
                     delivery_country = country_name
-                    delivery_zip1 = val[2]['zip']
+                    delivery_zip1 = val[2]['zip'] or ' '
+		    if not delivery_street:delivery_street = ' '
+                    if not delivery_street2:delivery_street2 = ' '
+                    if not delivery_city:delivery_city = ' '
+                    if not delivery_zip1:delivery_zip1 = ' '
+		    if not delivery_state:delivery_state = ' '
+                    if not delivery_country:delivery_country = ' '
+
+	
                     delev_add = delivery_street+","+ delivery_street2+","+ delivery_city+","+ delivery_state+","+ delivery_country+","+ delivery_zip1,
                 if val[2] and val[2].has_key('type') and val[2]['type']=='contact':
                     cell = val[2]['mobile']
@@ -464,19 +509,30 @@ class ResPartner(models.Model):
 	if self.child_ids:
 	    for val in self.child_ids:
 	      if val.type=='invoice':
+		state_name = ' '
+		country_name = ' '
                 if val.state_id:
                         state_name = self.env['res.country.state'].search([('id','=',val.state_id.id)]).name
                 if val.country_id:
                         country_name = self.env['res.country'].search([('id','=',val.country_id.id)]).name
-                postal_street = val.street
-                postal_street2 = val.street2
-                postal_city = val.city
+                postal_street = val.street or ' ' 
+                postal_street2 = val.street2 or ' '
+                postal_city = val.city or ' '
                 postal_state = state_name
                 postal_country = country_name
-                postal_zip1 = val.zip
+                postal_zip1 = val.zip or ' '
+		if not postal_street:postal_street = ' '
+                if not postal_street2:postal_street2 = ' '
+                if not postal_city:postal_city = ' '
+                if not postal_state:postal_state = ' '
+                if not postal_country:postal_country = ' '
+                if not postal_zip1:postal_zip1 = ' '
+
                 postal_add = postal_street+","+ postal_street2+","+ postal_city+","+ postal_state+","+ postal_country+","+ postal_zip1,
                 
               if val.type=='delivery':
+		state_name = ' '
+		country_name = ' '
                 if val.state_id:
                         state_name = self.env['res.country.state'].search([('id','=',val.state_id.id)]).name
                 if val.country_id:
@@ -487,6 +543,13 @@ class ResPartner(models.Model):
                 delivery_state = state_name
                 delivery_country = country_name
                 delivery_zip1 = val.zip
+		if not delivery_street:delivery_street = ' '
+                if not delivery_street2:delivery_street2 = ' '
+                if not delivery_city:delivery_city = ' '
+                if not delivery_state:delivery_state = ' '
+                if not delivery_country:delivery_country = ' '
+                if not delivery_zip1:delivery_zip1 = ' '
+
                 delev_add = delivery_street+","+ delivery_street2+","+ delivery_city+","+ delivery_state+","+ delivery_country+","+ delivery_zip1,
                 
               if val.type == 'contact':
@@ -519,6 +582,13 @@ class ResPartner(models.Model):
 		                delivery_state = self.env['res.country.state'].browse(val[2]['state_id']).name if val[2].has_key('state_id') else con_data.state_id.name
 		                delivery_country = self.env['res.country'].browse(val[2]['country_id']).name if val[2].has_key('country_id') else con_data.country_id.name
 		                delivery_zip1 = val[2]['zip'] if val[2].has_key('zip') else con_data.zip
+				if not delivery_street:delivery_street = ' '
+				if not delivery_street2:delivery_street2 = ' '
+				if not delivery_city:delivery_city = ' '
+				if not delivery_state:delivery_state = ' '
+				if not delivery_country:delivery_country = ' '
+				if not delivery_zip1:delivery_zip1 = ' '
+					
 		                delev_add = delivery_street+","+ delivery_street2+","+ delivery_city+","+ delivery_state+","+ delivery_country+","+ delivery_zip1,
 
 		    if val[2]:
@@ -531,6 +601,13 @@ class ResPartner(models.Model):
                                 postal_state = self.env['res.country.state'].browse(val[2]['state_id']).name if val[2].has_key('state_id') else con_data.state_id.name
                                 postal_country = self.env['res.country'].browse(val[2]['country_id']).name if val[2].has_key('country_id') else con_data.country_id.name
                                 postal_zip1 = val[2]['zip'] if val[2].has_key('zip') else con_data.zip
+				if not postal_street:postal_street = ' '
+                                if not postal_street2:postal_street2 = ' '
+                                if not postal_city:postal_city = ' '
+                                if not postal_state:postal_state = ' '
+                                if not postal_country:postal_country = ' '
+                                if not postal_zip1:postal_zip1 = ' '
+
                                 postal_add = postal_street+","+ postal_street2+","+ postal_city+","+ postal_state+","+ postal_country+","+ postal_zip1,
 
 	      
@@ -543,7 +620,7 @@ class ResPartner(models.Model):
 	  "Customer": {
 	    "_blocked": vals['account_blocked'] if vals.has_key('account_blocked') else self.account_blocked,
 	    "_countryCode": None,
-	    "_createDate": "/Date("+str(a)+"+0200"+")/",
+	    "_createDate": str(create_date),
 	    "_creditLimit": vals.has_key('credit_limit') and vals['credit_limit'] or self.credit_limit,
 	    "_currencyCode": 0,
 	    "_currentBalance": 0.00,
@@ -551,7 +628,7 @@ class ResPartner(models.Model):
 	      {
 	        "_branchID": "00000000-0000-0000-0000-000000000000",
 	        "_branchName": "1",
-	        "_createDate": "/Date("+str(a)+"+0200"+")/",
+	        "_createDate": str(create_date),
 	        "_customerContacts": [
 	          {
 	            "_branchID": "00000000-0000-0000-0000-000000000000",
@@ -655,7 +732,7 @@ class ResPartner(models.Model):
           "supplier": {
             "_blocked": vals['account_blocked'] if vals.has_key('account_blocked') else self.account_blocked,
             "_countryCode": None,
-            "_createDate": "/Date("+str(a)+"+0200"+")/",
+            "_createDate": str(create_date),
             "_creditLimit": vals['credit_limit'] if vals.has_key('credit_limit') else self.credit_limit,
             "_currencyCode": 0,
             "_currentBalance": 0.00,
@@ -720,9 +797,9 @@ class ResPartner(models.Model):
 		conn = requests.get(url)
                 if conn.status_code == 200:
 
-			if self and self.customer:
+			if self.company_type == 'company' and self.customer:
 				save_customer = requests.post(url='http://letsap.dedicated.co.za/Letsap.Framework.WebHost/KMQAPIService.svc/SaveCustomer', headers=headers,json=mydict(data))
-			elif self and self.supplier:
+			elif  self.company_type == 'company' and self.supplier:
 				save_supplier = requests.post(url='http://letsap.dedicated.co.za/Letsap.Framework.WebHost/KMQAPIService.svc/SaveSupplier', headers=headers,json=mydict(supp_data))
 
 
@@ -1051,5 +1128,5 @@ class ResPartner(models.Model):
 	
 		except Exception,e:
 			print "Exception is:",e
-		return True"""
+		return True
 	

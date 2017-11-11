@@ -1,3 +1,5 @@
 id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
 access_branding_method,branding.method,model_branding_method,sales_team.group_sale_salesman,1,1,1,1
+access_delivery_hub,delivery.hub,model_delivery_hub,sales_team.group_sale_salesman,1,0,0,0
+access_courier_company,courier_company,model_courier_company,sales_team.group_sale_salesman,1,0,0,0
 

@@ -145,10 +145,8 @@ class Project(models.Model):
 		payment_id = data[4]
 		account_id = data[6]
 		refund_id = self.env['account.invoice'].search([('name','=',data[0])])
-		print refund_id,'refund idddddddddd'
 		if not refund_id:
 			res = self.env['account.invoice'].create({'name':data[0],'origin':data[8],'partner_id':int(partner_id),'date_invoice':data[1],'user_id':int(user_id),'journal_id':int(journal_id),'payment_term_id':int(payment_id),'account_id':int(account_id),'type':'out_refund'})
-			print count,'counttttttttt'
 
 	    
 	    data2 = cr.execute("SELECT * from refund_lines")
@@ -175,7 +173,6 @@ class Project(models.Model):
 			#invoice_id.action_invoice_open()
 			if tax_id:
 				invoice_id._onchange_invoice_line_ids()
-		print counter,'counterrrrrr'
 
 	    for inv in invoice_id_list:	
 		inv.action_invoice_open()

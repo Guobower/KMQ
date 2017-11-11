@@ -1,6 +1,71 @@
 <odoo>
     <data>
 
+	<record id="group_account_hide_refund" model="res.groups">
+        	<field name="name">Hide Refund</field>
+	        <field name="category_id" ref="base.module_category_accounting_and_finance"/>
+	</record>
+
+
+	<record id="invoice_tree_inh" model="ir.ui.view">
+		<field name="name">account.invoice.tree.inh</field>
+		<field name="model">account.invoice</field>
+		<field name="inherit_id" ref="account.invoice_tree"/>
+                <field name="arch" type="xml">
+			<field name="partner_id" position="before">
+				<field name="partner_code" string="Customer Code"/>
+			</field>
+		</field>
+	</record>
+
+	<record id="sale_quotation_tree_inh" model="ir.ui.view">
+                <field name="name">sale.order.tree.inh</field>
+                <field name="model">sale.order</field>
+                <field name="inherit_id" ref="sale.view_quotation_tree"/>
+                <field name="arch" type="xml">
+                        <field name="partner_id" position="before">
+                                <field name="partner_code" string="Customer Code"/>
+                        </field>
+                </field>
+        </record>
+
+	<record id="sale_order_tree_inh" model="ir.ui.view">
+                <field name="name">sale.order.tree.inh</field>
+                <field name="model">sale.order</field>
+                <field name="inherit_id" ref="sale.view_order_tree"/>
+                <field name="arch" type="xml">
+                        <field name="partner_id" position="before">
+                                <field name="partner_code" string="Customer Code"/>
+                        </field>
+                </field>
+        </record>
+
+
+
+	<record id="vendor_tree_inh" model="ir.ui.view">
+                <field name="name">account.invoice.supplier.tree.inh</field>
+                <field name="model">account.invoice</field>
+                <field name="inherit_id" ref="account.invoice_supplier_tree"/>
+                <field name="arch" type="xml">
+                        <field name="partner_id" position="before">
+                                <field name="partner_code" string="Customer Code"/>
+                        </field>
+                </field>
+        </record>
+
+        <record id="partner_tree_inh" model="ir.ui.view">
+                <field name="name">res.partner.tree.inh</field>
+                <field name="model">res.partner</field>
+                <field name="inherit_id" ref="base.view_partner_tree"/>
+                <field name="arch" type="xml">
+                        <field name="display_name" position="before">
+                                <field name="ref" string="Customer Code"/>
+                        </field>
+                </field>
+        </record>
+
+
+
 	<record id="invoice_form_inherit" model="ir.ui.view">
 	    <field name="name">invoice.form.inherit</field>
 	    <field name="model">account.invoice</field>
@@ -13,6 +78,15 @@
 		<field name="payment_term_id" position="after">
 			<field name="associated_project"/>
 		</field>
+
+		<xpath expr="//form/sheet/notebook/page[@name='other_info']/group[1]/group[2]/field[@name='name']" position="after">
+                        <field name="created_at_pastel"/>
+                </xpath>
+
+
+	        <xpath expr="//button[@name='action_invoice_open']" position="after">
+                        <button name="post_to_pastel" type="object" string="Post to Pastel" attrs="{'invisible':[('created_at_pastel','=',True),('state','=','draft')]}" class="oe_highlight" groups="kt_kmq.push_docs_to_group"/>
+                </xpath>
 
    		<field name="user_id" position="after">
                         <field name="pricelist_id"/>
@@ -32,16 +106,13 @@
 			</tree>
 		    </field>
 		</field>
-		<xpath expr="//notebook/page[@name='other_info']/group[1]/group[2]" position="inside">
-			<field name="has_branding"/>
-		</xpath>
-		<xpath expr="//notebook/page[2]" position="after">
-		    <page string="Description">
-			<group>
-			    <field name="description"/>
-			</group>
-		    </page>
-		</xpath>		    
+		<!--<xpath expr="//notebook/page[3]" position="after">
+                    <page string="Description">
+                        <group>
+                            <field name="description"/>
+                        </group>
+                    </page>
+                </xpath>-->
 	    </field>
 	</record>
 
