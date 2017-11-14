@@ -175,7 +175,7 @@ class AccountInvoice(models.Model):
         client_data_resp = requests.post(url='http://letsap.dedicated.co.za/portmapping/CompanyList.asmx/GetCompanyList', headers=headers,  json=client_data)
         client_data_res = json.loads(client_data_resp.content)
 	for data in client_data_res['d']:
-		if data['Alias'] == 'PASTELCONNECT':
+		if data['Alias'] == 'PASTELTEST-PC':
 		        client_handle = data['ClientHandle'] 
 			continue
 
@@ -350,7 +350,7 @@ class AccountInvoice(models.Model):
                 client_handle = data['ClientHandle'] 
                 continue
 #     	for data in client_data_res['d']:
-#     		if data['Alias'] == 'PASTELCONNECT':
+#     		if data['Alias'] == 'PASTELTEST-PC':
 # 		        client_handle = data['ClientHandle'] 
 #     			continue
 
@@ -622,7 +622,7 @@ class AccountPayment(models.Model):
 		ref_amount = float(self.amount)
 
         for data in client_data_res['d']:
-                if data['Alias'] == 'PASTELCONNECT':
+                if data['Alias'] == 'PASTELTEST-PC':
                         client_handle = data['ClientHandle']
                         continue
 	if self.journal_id.name == 'Credit Card Clearing':
