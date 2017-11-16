@@ -174,6 +174,7 @@ class AccountInvoice(models.Model):
         client_data = {"username" : "Daniel"}
         client_data_resp = requests.post(url='http://letsap.dedicated.co.za/portmapping/CompanyList.asmx/GetCompanyList', headers=headers, json=client_data)
         client_data_res = json.loads(client_data_resp.content)
+
         for data in client_data_res['d']:
             if data['Alias'] == 'PASTELTEST-PC':
                 client_handle = data['ClientHandle'] 
@@ -372,7 +373,7 @@ class AccountInvoice(models.Model):
                 continue
         print"client_handle===========", client_handle
 #     	for data in client_data_res['d']:
-#     		if data['Alias'] == 'PASTELCONNECT':
+#     		if data['Alias'] == 'PASTELTEST-PC':
 # 		        client_handle = data['ClientHandle'] 
 #     			continue
  
