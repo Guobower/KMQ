@@ -12,7 +12,7 @@ import StringIO
 import cStringIO
 import base64
 import requests
-# import xmltodict
+import xmltodict
 epoch = datetime.utcfromtimestamp(0)
 
 def unix_time_millis(dt):

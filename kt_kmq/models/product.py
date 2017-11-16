@@ -137,10 +137,15 @@ class Product(models.Model):
         client_data = {"username" : "Daniel"}
         client_data_resp = requests.post(url='http://letsap.dedicated.co.za/portmapping/CompanyList.asmx/GetCompanyList', headers=headers,  json=client_data)
         client_data_res = json.loads(client_data_resp.content)
-	for data in client_data_res['d']:
-                if data['Alias'] == 'PASTELCONNECT':
-                        client_handle = data['ClientHandle']
-                        continue
+        for data in client_data_res['d']:
+            if data['Alias'] == 'PASTELTEST-PC':
+                client_handle = data['ClientHandle']
+                continue
+#         for data in client_data_res['d']:
+#             if data['Alias'] == 'PASTELCONNECT':
+#                 client_handle = data['ClientHandle']
+#                 continue
+        print"client_handle==========",client_handle
 
         #client_handle = client_data_res['d'][0]['ClientHandle']
 	if vals.has_key('product_tmpl_id') and vals['product_tmpl_id']:

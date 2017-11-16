@@ -76,7 +76,11 @@
 		</xpath>
 
 		<field name="payment_term_id" position="after">
-			<field name="associated_project"/>
+			<field name="associated_project" readonly="1"/>
+			<field name="job_type"/>
+			<field name="artwork_format"/>
+			<field name="pantone"/>
+			<field name="deadline_date"/>
 		</field>
 
 		<xpath expr="//form/sheet/notebook/page[@name='other_info']/group[1]/group[2]/field[@name='name']" position="after">
@@ -84,9 +88,9 @@
                 </xpath>
 
 
-	        <xpath expr="//button[@name='action_invoice_open']" position="after">
-                        <button name="post_to_pastel" type="object" string="Post to Pastel" attrs="{'invisible':[('created_at_pastel','=',True),('state','=','draft')]}" class="oe_highlight" groups="kt_kmq.push_docs_to_group"/>
-                </xpath>
+<!-- 	        <xpath expr="//button[@name='action_invoice_open']" position="after"> -->
+<!--                         <button name="post_to_pastel" type="object" string="Post to Pastel" attrs="{'invisible':[('created_at_pastel','=',True),('state','=','draft')]}" class="oe_highlight" groups="kt_kmq.push_docs_to_group"/> -->
+<!--                 </xpath> -->
 
    		<field name="user_id" position="after">
                         <field name="pricelist_id"/>

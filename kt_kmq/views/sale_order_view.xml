@@ -38,6 +38,10 @@
 		    <field name="inherit_id" ref="sale.view_order_form"/>
 		    <field name="arch" type="xml">
 
+            <xpath expr="//form/header/button[@name='action_cancel']" position="attributes">
+                <attribute name="attrs">{'invisible':[('state','=','cancel')]}</attribute>
+            </xpath>
+
 			<field name="partner_id" position="attributes">
                                 <attribute name="domain">[('customer','=',True),('parent_id','=',False)]</attribute>
                                 <attribute name="context">{'search_default_customer':1,'show_address':1}</attribute>

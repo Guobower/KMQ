@@ -301,10 +301,12 @@ class SaleOrder(models.Model):
                         if stock.state in ['confirmed','assigned']:
                             stock.state = 'waiting'
 
-		if self.product_branding2_ids:
-			project_id = self.env['project.project'].create({'name':'Proj'+self.name,'job_type':self.job_type,'artwork_format':self.artwork_format,'pantone':self.pantone,'deadline_date':self.deadline_date,'partner_id':self.partner_id and self.partner_id.id or False}) #Jagadeesh added partner id
-			if project_id:
-				self.write({'associated_project':project_id and project_id.id or False})
+        # Comment the code for create project from sale order
+# 		if self.product_branding2_ids:
+# 			project_id = self.env['project.project'].create({'name':'Proj'+self.name,'job_type':self.job_type,'artwork_format':self.artwork_format,'pantone':self.pantone,'deadline_date':self.deadline_date,'partner_id':self.partner_id and self.partner_id.id or False}) #Jagadeesh added partner id
+# 			if project_id:
+# 				self.write({'associated_project':project_id and project_id.id or False})
+
 				#project_id.write({'partner_id':self.partner_id and self.partner_id.id or False}) #Jagadeesh commneted
 		return super(SaleOrder,self).action_confirm()
 
@@ -366,36 +368,50 @@ class SaleOrder(models.Model):
                     })
 
 
+        # From SO create invoice and update the project fields from SO to invoice
         @api.multi
         def _prepare_invoice(self):
-                """
-                Prepare the dict of values to create the new invoice for a sales order. This method may be
-                overridden to implement custom invoice generation (making sure to call super() to establish
-                a clean extension chain).
-                """
-                self.ensure_one()
-                journal_id = self.env['account.invoice'].default_get(['journal_id'])['journal_id']
-                if not journal_id:
-                    raise UserError(_('Please define an accounting sale journal for this company.'))
-                invoice_vals = {
-                    'name': self.client_order_ref or '',
-                    'origin': self.name,
-                    'type': 'out_invoice',
-                    'account_id': self.partner_invoice_id.property_account_receivable_id.id,
-                    'partner_id': self.partner_invoice_id.id,
-                    'partner_shipping_id': self.partner_shipping_id.id,
-                    'journal_id': journal_id,
-                    'currency_id': self.pricelist_id.currency_id.id,
-                    'comment': self.note,
-                    'payment_term_id': self.payment_term_id.id,
-                    'fiscal_position_id': self.fiscal_position_id.id or self.partner_invoice_id.property_account_position_id.id,
-                    'company_id': self.company_id.id,
-                    'user_id': self.user_id and self.user_id.id,
-                    'team_id': self.team_id.id,
-                    'date_invoice' : datetime.now().date(),
-                    'pricelist_id' : self.pricelist_id and self.pricelist_id.id or False
-                }
-                return invoice_vals
+            res = super(SaleOrder, self)._prepare_invoice()
+            print "\n\n --res--",res
+            res.update({'job_type':self.job_type,
+                        'artwork_format':self.artwork_format,
+                        'pantone':self.pantone,
+                        'deadline_date':self.deadline_date,
+                        })
+            return res
+
+#         @api.multi
+#         def _prepare_invoice(self):
+#                 print "\n\n --call----_prepare_invoice---",self
+#                 """
+#                 Prepare the dict of values to create the new invoice for a sales order. This method may be
+#                 overridden to implement custom invoice generation (making sure to call super() to establish
+#                 a clean extension chain).
+#                 """
+#                 self.ensure_one()
+#                 journal_id = self.env['account.invoice'].default_get(['journal_id'])['journal_id']
+#                 if not journal_id:
+#                     raise UserError(_('Please define an accounting sale journal for this company.'))
+#                 invoice_vals = {
+#                     'name': self.client_order_ref or '',
+#                     'origin': self.name,
+#                     'type': 'out_invoice',
+#                     'account_id': self.partner_invoice_id.property_account_receivable_id.id,
+#                     'partner_id': self.partner_invoice_id.id,
+#                     'partner_shipping_id': self.partner_shipping_id.id,
+#                     'journal_id': journal_id,
+#                     'currency_id': self.pricelist_id.currency_id.id,
+#                     'comment': self.note,
+#                     'payment_term_id': self.payment_term_id.id,
+#                     'fiscal_position_id': self.fiscal_position_id.id or self.partner_invoice_id.property_account_position_id.id,
+#                     'company_id': self.company_id.id,
+#                     'user_id': self.user_id and self.user_id.id,
+#                     'team_id': self.team_id.id,
+#                     'date_invoice' : datetime.now().date(),
+#                     'pricelist_id' : self.pricelist_id and self.pricelist_id.id or False,
+#                     
+#                 }
+#                 return invoice_vals
 
         @api.multi
         def action_invoice_create_inh(self, grouped=False, final=False):
@@ -407,48 +423,46 @@ class SaleOrder(models.Model):
             :returns: list of created invoices
             """
             inv_obj = self.env['account.invoice']
-	    ir_property_obj = self.env['ir.property']
+            ir_property_obj = self.env['ir.property']
             precision = self.env['decimal.precision'].precision_get('Product Unit of Measure')
             invoices = {}
             references = {}
-	    branding_vals_item = {}
-	    branding_vals_setup = {}
-	    lt = []
-	    tax_ids = []
-	    att = ''
+            branding_vals_item = {}
+            branding_vals_setup = {}
+            lt = []
+            location_code = False
+            tax_ids = []
+            att = ''
             for order in self:
-	    	account_id = False
-	        if self.product_id.id:
-        		account_id = self.product_id.property_account_income_id.id
-	        if not account_id:
-        	        inc_acc = ir_property_obj.get('property_account_income_categ_id', 'product.category')
-                	account_id = order.fiscal_position_id.map_account(inc_acc).id if inc_acc else False
-
-		branding_items_vals = [] 
+                account_id = False
+                if self.product_id.id:
+                    account_id = self.product_id.property_account_income_id.id
+                if not account_id:
+                    inc_acc = ir_property_obj.get('property_account_income_categ_id', 'product.category')
+                    account_id = order.fiscal_position_id.map_account(inc_acc).id if inc_acc else False
+                branding_items_vals = [] 
                 group_key = order.id if grouped else (order.partner_invoice_id.id, order.currency_id.id)
                 for line in order.order_line.sorted(key=lambda l: l.qty_to_invoice < 0):
-		    if line.tax_id:
-    			    if self.fiscal_position_id and self.product_id.taxes_id:
-        	            	tax_ids = order.fiscal_position_id.map_tax(self.product_id.taxes_id).ids
-	        	    else:
-        	        	tax_ids = self.product_id.taxes_id.ids
-		    #Jagadeesh added 
-	            if line.qty_to_invoice == 0.0:
+                    if line.tax_id:
+                        if self.fiscal_position_id and self.product_id.taxes_id:
+                            tax_ids = order.fiscal_position_id.map_tax(self.product_id.taxes_id).ids
+                        else:
+                            tax_ids = self.product_id.taxes_id.ids
+                    #Jagadeesh added 
+                    if line.qty_to_invoice == 0.0:
                         line.qty_to_invoice = line.product_uom_qty - line.qty_invoiced
-		    #Jagadeesh end
+                    #Jagadeesh end
                     if float_is_zero(line.qty_to_invoice, precision_digits=precision):
                         continue
                     if group_key not in invoices:
                         inv_data = order._prepare_invoice()
                         invoice = inv_obj.create(inv_data)
-			invoice._onchange_payment_term_date_invoice()
+                        invoice._onchange_payment_term_date_invoice()
                         references[invoice] = order
                         invoices[group_key] = invoice
-
                     elif group_key in invoices:
                         vals = {}
-			vals['user_id'] = order.user_id and order.user_id.id or False
-					
+                        vals['user_id'] = order.user_id and order.user_id.id or False
                         if order.name not in invoices[group_key].origin.split(', '):
                             vals['origin'] = invoices[group_key].origin + ', ' + order.name
                         if order.client_order_ref and order.client_order_ref not in invoices[group_key].name.split(', '):
@@ -459,79 +473,76 @@ class SaleOrder(models.Model):
                     elif line.qty_to_invoice < 0 and final:
                         line.invoice_line_create(invoices[group_key].id, line.qty_to_invoice)
 
-		    #Jagadeesh added 
-		    ''' to update branding items'''
-		    if line.add_product_branding:
-		        product_brand_items = self.env['product.branding.lines'].search([('sale_order_line_id','=',line.id)])
-		    
-		        for brand in product_brand_items:
-			    if brand.setup_cost >= 0.00:
-				location = brand.branding_location.name
-				if location:
-					location_name = location.split(" ")[1]
-					location_code = 'B0SP'+location_name
-				if brand.color_variant:
-					att = brand.color_variant.name
-				if brand.size_variant:
-					att = brand.size_variant.name
-				prod = self.env['product.product'].search([('default_code','=',str(location_code))])
-				prod2 = self.env['product.template'].search([('default_code','=','BOSPA')])
-				branding_vals_setup = {'product_id':prod.id,'name': "Setup for"+" "+brand.product_id.name+"-"+location_code+"-"+att,
-                                              'quantity':1,'price_unit':brand.setup_cost,
-                                              'invoice_line_tax_ids':[(6, 0, tax_ids)],'amount':(1 * brand.setup_cost),
-                                              'account_id':account_id}
-				lt.append(branding_vals_setup)
-
-			    if brand.item_cost >= 0.00:
-
-				prod_code = prod_desc = ''
-				location = brand.branding_location.name
-                                location_name = location.split(" ")[1]
-                                location_code = 'B0SP'+location_name
-				if brand.color_variant:
+                    #Jagadeesh added 
+                    ''' to update branding items'''
+                    if line.add_product_branding:
+                        product_brand_items = self.env['product.branding.lines'].search([('sale_order_line_id','=',line.id)])
+                        for brand in product_brand_items:
+                            if brand.setup_cost >= 0.00:
+                                location = brand.branding_location.name
+                                if location:
+                                    location_name = location.split(" ")[1]
+                                    location_code = 'B0SP'+location_name
+                            if brand.color_variant:
+                                att = brand.color_variant.name
+                            if brand.size_variant:
+                                att = brand.size_variant.name
+                            if location_code:
+                                prod = self.env['product.product'].search([('default_code','=',str(location_code))])
+                                prod2 = self.env['product.template'].search([('default_code','=','BOSPA')])
+                                branding_vals_setup = {'product_id':prod.id,'name': "Setup for"+" "+brand.product_id.name+"-"+location_code+"-"+att,
+                                                  'quantity':1,'price_unit':brand.setup_cost,
+                                                  'invoice_line_tax_ids':[(6, 0, tax_ids)],'amount':(1 * brand.setup_cost),
+                                                  'account_id':account_id}
+                                lt.append(branding_vals_setup)
+                            if brand.item_cost >= 0.00:
+                                prod_code = prod_desc = ''
+                                location = brand.branding_location.name
+                                if location:
+                                    location_name = location.split(" ")[1]
+                                    location_code = 'B0SP'+location_name
+                                if brand.color_variant:
                                         att = brand.color_variant.name
                                 if brand.size_variant:
                                         att = brand.size_variant.name
-
-
-				prod_id = False
-				prod_id = self.env['product.product'].search([('default_code','=',location_code)])
+                            prod_id = False
+                            if location_code:
+                                prod_id = self.env['product.product'].search([('default_code','=',location_code)])
                                 if brand.branding_method.name == 'Heat Press':
-                                        prod_code = 'B0FLEX'
-                                        prod_desc = 'KMQ Heat Press for'+ ' '+brand.product_id.name+"-"+location_code+"-"+att
+                                    prod_code = 'B0FLEX'
+                                    prod_desc = 'KMQ Heat Press for'+ ' '+brand.product_id.name+"-"+location_code+"-"+att
 
                                 elif brand.branding_method.name == 'Pad Print':
-                                        prod_code = 'B0PPA'
-                                        prod_desc = 'KMQ Pad Print for'+ ' '+brand.product_id.name+"-"+location_code+"-"+att
+                                    prod_code = 'B0PPA'
+                                    prod_desc = 'KMQ Pad Print for'+ ' '+brand.product_id.name+"-"+location_code+"-"+att
 
                                 elif brand.branding_method.name == 'Screen Print':
-                                        prod_code = 'B0SPA'
-                                        prod_desc = 'KMQ Screen Print for'+ ' '+brand.product_id.name+"-"+location_code+"-"+att
+                                    prod_code = 'B0SPA'
+                                    prod_desc = 'KMQ Screen Print for'+ ' '+brand.product_id.name+"-"+location_code+"-"+att
 
                                 elif brand.branding_method.name == 'Embroidery':
-                                        prod_code = 'BEMB'
-                                        prod_desc = 'KMQ Embroidery for'+ ' '+brand.product_id.name+"-"+location_code+"-"+att
+                                    prod_code = 'BEMB'
+                                    prod_desc = 'KMQ Embroidery for'+ ' '+brand.product_id.name+"-"+location_code+"-"+att
 
                                 elif brand.branding_method.name == 'Doming':
-                                        prod_code = 'DOME'
-                                        prod_desc = 'KMQ Doming for'+ ' '+brand.product_id.name+"-"+location_code+"-"+att
+                                    prod_code = 'DOME'
+                                    prod_desc = 'KMQ Doming for'+ ' '+brand.product_id.name+"-"+location_code+"-"+att
 
-				elif brand.branding_method.name == 'Stickers':
-                                        prod_code = 'STCKR'
-                                        prod_desc = 'KMQ Stickers for'+ ' '+brand.product_id.name+"-"+location_code+"-"+att
-
+                                elif brand.branding_method.name == 'Stickers':
+                                    prod_code = 'STCKR'
+                                    prod_desc = 'KMQ Stickers for'+ ' '+brand.product_id.name+"-"+location_code+"-"+att
 
                                 branding_vals_item = {'product_id':prod_id.id,'name':prod_desc,
                                               'quantity':line.product_uom_qty,'price_unit':brand.item_cost,
                                               'invoice_line_tax_ids':[(6, 0, tax_ids)],'amount':(line.product_uom_qty * brand.item_cost),
                                               'account_id':account_id}
-				lt.append(branding_vals_item)
+                                lt.append(branding_vals_item)
 
-		#invoices[group_key].write({'account_product_branding_ids':branding_items_vals})
-		for dic in lt:
-			invoices[group_key].write({'invoice_line_ids': [(0,0,dic)]})
-		#Jagadeesh end
-		   
+                #invoices[group_key].write({'account_product_branding_ids':branding_items_vals})
+                for dic in lt:
+                    invoices[group_key].write({'invoice_line_ids': [(0,0,dic)]})
+                    #Jagadeesh end
+
                 if references.get(invoices.get(group_key)):
                     if order not in references[invoices[group_key]]:
                         references[invoice] = references[invoice] | order
@@ -556,10 +567,9 @@ class SaleOrder(models.Model):
                 invoice.message_post_with_view('mail.message_origin_link',
                     values={'self': invoice, 'origin': references[invoice]},
                     subtype_id=self.env.ref('mail.mt_note').id)
-	
+
             return [inv.id for inv in invoices.values()]
 	    #Jagadeesh end
-
 
 
 class ProductBrandingLines(models.Model):
@@ -710,6 +720,7 @@ class QuotaionCancel(models.Model):
 
     @api.multi
     def submit_reason(self):
+        project_stages_obj = self.env['project.stages']
         if self.lost_reason_id:
             sale_order_id = self.env.context.get('active_id')
             sale_order_obj = self.env['sale.order'].browse(sale_order_id)
@@ -728,8 +739,16 @@ class QuotaionCancel(models.Model):
             for stock in stock_picks:
                 stock.action_cancel()
             #Jagadeesh oct 23 end
-
-
+            if self._context and self._context.get('active_model') and self._context.get('active_id'):
+                order_id = self.env[self._context.get('active_model')].browse(self._context.get('active_id'))
+                if order_id:
+                    if order_id.associated_project:
+                        stage_id = project_stages_obj.search([('name', '=', 'Cancelled')], order='id desc', limit=1)
+                        if not stage_id:
+                            stage_id = project_stages_obj.create({'name':'Cancelled'})
+                        order_id.associated_project.write({'stage_id':stage_id.id})
+                        order_id.associated_project.toggle_active()
+                    order_id.order_line.mapped('procurement_ids').cancel()
         return True
 
 #Jagadeesh start

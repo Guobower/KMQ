@@ -35,56 +35,55 @@ class ProjectStages(models.Model):
 
 
 class Project(models.Model):
-	_inherit = 'project.project'
+    _inherit = 'project.project'
 
-	def _get_so_amount(self):
-		total = 0.0
-		for order in self.env['sale.order'].search([('associated_project','=',self.id)]):
-			total+=order.amount_untaxed
-		self.so_amount = total
+    def _get_so_amount(self):
+        total = 0.0
+        for order in self.env['sale.order'].search([('associated_project','=',self.id)]):
+            total+=order.amount_untaxed
+        self.so_amount = total
 
 
-	def _get_do_count(self):
-		do_list = []
-                for order in self.env['sale.order'].search([('associated_project','=',self.id)]):
-			order.picking_ids = self.env['stock.picking'].search([('group_id', '=', order.procurement_group_id.id)]) if order.procurement_group_id else []
-                        self.do_count = len(order.picking_ids)
-			"""do_list.append(self.env['stock.picking'].search([('origin','=',order.name)]))
-                self.do_count = len(do_list)"""
+    def _get_do_count(self):
+        do_list = []
+        for order in self.env['sale.order'].search([('associated_project','=',self.id)]):
+            order.picking_ids = self.env['stock.picking'].search([('group_id', '=', order.procurement_group_id.id)]) if order.procurement_group_id else []
+            self.do_count = len(order.picking_ids)
+        """do_list.append(self.env['stock.picking'].search([('origin','=',order.name)]))
+            self.do_count = len(do_list)"""
 
-	def _get_inv_amount(self):
-                total = 0.0
-                for inv in self.env['account.invoice'].search([('associated_project','=',self.id)]):
-                        total+=inv.amount_untaxed
-                self.inv_amount = total
+    def _get_inv_amount(self):
+        total = 0.0
+        for inv in self.env['account.invoice'].search([('associated_project','=',self.id)]):
+                total+=inv.amount_untaxed
+        self.inv_amount = total
 
-	def _get_sign_count(self):
-                sign_list = self.env['signature.request'].search([('project_id','=',self.id)])
-		if sign_list:
-	                self.sign_count = len(sign_list)
+    def _get_sign_count(self):
+        sign_list = self.env['signature.request'].search([('project_id','=',self.id)])
+        if sign_list:
+            self.sign_count = len(sign_list)
 			
-	def _default_stage_id(self):
-        	default_stages = self.env['project.stages'].sudo().search([('name','=','New')]).id
-	        return default_stages
+    def _default_stage_id(self):
+        default_stages = self.env['project.stages'].sudo().search([('name','=','New')]).id
+        return default_stages
 
+    project_number = fields.Char('Project Number')
+    start_date = fields.Datetime('Start Date')
+    end_date = fields.Datetime('End Date')
+    space = fields.Char('')
+    so_amount = fields.Float(compute='_get_so_amount',string="Sales")
+    do_count = fields.Integer(compute='_get_do_count',string="Delivery")
+    inv_amount = fields.Float(compute='_get_inv_amount',string="Invoiced")
+    sign_count = fields.Integer(compute='_get_sign_count',string="Signatures")
+    stage_id = fields.Many2one('project.stages','Stages',default=lambda self: self._default_stage_id(),track_visibility='onchange')
+    job_type = fields.Selection([('Normal','Normal'),('Re-Run','Re-Run'),('Special','Special'),('Deadline','Deadline')],string="Job Type")
+    artwork_format = fields.Selection([('Wording','Wording'),('Jpeg','Jpeg'),('PDF','PDF'),('Other','Other')],string="Artwork Format")
+    pantone = fields.Char('Pantone')
+    deadline_date = fields.Datetime('Deadline Date')
+    artwork_upload_ids = fields.One2many('artwork.upload.details','project_id',string="Artwork Upload Details")
+    logo = fields.Char(string="Logo")
 
-
-	project_number = fields.Char('Project Number')
-	start_date = fields.Datetime('Start Date')
-	end_date = fields.Datetime('End Date')
-	space = fields.Char('')
-	so_amount = fields.Float(compute='_get_so_amount',string="Sales")
-	do_count = fields.Integer(compute='_get_do_count',string="Delivery")
-	inv_amount = fields.Float(compute='_get_inv_amount',string="Invoiced")
-	sign_count = fields.Integer(compute='_get_sign_count',string="Signatures")
-	stage_id = fields.Many2one('project.stages','Stages',default=lambda self: self._default_stage_id(),track_visibility='onchange')
-	job_type = fields.Selection([('Normal','Normal'),('Re-Run','Re-Run'),('Special','Special'),('Deadline','Deadline')],string="Job Type")
-	artwork_format = fields.Selection([('Wording','Wording'),('Jpeg','Jpeg'),('PDF','PDF'),('Other','Other')],string="Artwork Format")
-	pantone = fields.Char('Pantone')
-	deadline_date = fields.Datetime('Deadline Date')
-	artwork_upload_ids = fields.One2many('artwork.upload.details','project_id',string="Artwork Upload Details")
-
-	def synch_data_daily(self):
+    def synch_data_daily(self):
 	    journal = self.env['account.journal'].search([('name','=','Bank')])
 	    invoice_id_list = []
 	    count = 0
@@ -129,24 +128,24 @@ class Project(models.Model):
 				invoice_id._onchange_invoice_line_ids()
 	    cr.close()
 
-	def synch_refund_data_daily(self):
-	    invoice_id_list = []
-	    count = 0
-	    db = MySQLdb.connect("puladb.intdev.co.za","domain","Str@teg1c321","kmq" )
-	    cr = db.cursor()
-	    #qry = "UPDATE invoice_header set exists_in_odoo=True where reference='IN224818'"
-	    data = cr.execute("SELECT * from refund_header")
-	    res = cr.fetchall()
-	    for data in res:
-		count+=1
-		partner_id = data[2]
-		user_id = data[3]
-		journal_id = data[5]
-		payment_id = data[4]
-		account_id = data[6]
-		refund_id = self.env['account.invoice'].search([('name','=',data[0])])
-		if not refund_id:
-			res = self.env['account.invoice'].create({'name':data[0],'origin':data[8],'partner_id':int(partner_id),'date_invoice':data[1],'user_id':int(user_id),'journal_id':int(journal_id),'payment_term_id':int(payment_id),'account_id':int(account_id),'type':'out_refund'})
+    def synch_refund_data_daily(self):
+        invoice_id_list = []
+        count = 0
+        db = MySQLdb.connect("puladb.intdev.co.za","domain","Str@teg1c321","kmq" )
+        cr = db.cursor()
+        #qry = "UPDATE invoice_header set exists_in_odoo=True where reference='IN224818'"
+        data = cr.execute("SELECT * from refund_header")
+        res = cr.fetchall()
+        for data in res:
+            count+=1
+            partner_id = data[2]
+            user_id = data[3]
+            journal_id = data[5]
+            payment_id = data[4]
+            account_id = data[6]
+        refund_id = self.env['account.invoice'].search([('name','=',data[0])])
+        if not refund_id:
+            res = self.env['account.invoice'].create({'name':data[0],'origin':data[8],'partner_id':int(partner_id),'date_invoice':data[1],'user_id':int(user_id),'journal_id':int(journal_id),'payment_term_id':int(payment_id),'account_id':int(account_id),'type':'out_refund'})
 
 	    
 	    data2 = cr.execute("SELECT * from refund_lines")
@@ -174,8 +173,8 @@ class Project(models.Model):
 			if tax_id:
 				invoice_id._onchange_invoice_line_ids()
 
-	    for inv in invoice_id_list:	
-		inv.action_invoice_open()
+        for inv in invoice_id_list:	
+            inv.action_invoice_open()
 
 
         @api.model

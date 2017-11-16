@@ -5,7 +5,9 @@
     'category': 'Sales',
     'sequence': 30,
     'description': """ KMQ Quotation : Provide ability for the sales users to generate the quote with product branding options """,
-    'depends' : ['base_setup', 'product', 'sale', 'sales_team','purchase','website_quote'],
+    'depends' : ['base_setup', 'product', 'sale', 'sales_team','purchase','website_quote',
+                 'project', 'website_sale', 'website_sign', 'smsclient', 'crm',
+                 'delivery', 'partner_credit_limit','sale_exception_credit_limit'],
     'data': [
 		'security/kmq_security.xml',
 		'views/branding_customizations_view.xml',
