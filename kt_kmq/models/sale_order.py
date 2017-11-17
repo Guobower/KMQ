@@ -372,7 +372,6 @@ class SaleOrder(models.Model):
         @api.multi
         def _prepare_invoice(self):
             res = super(SaleOrder, self)._prepare_invoice()
-            print "\n\n --res--",res
             res.update({'job_type':self.job_type,
                         'artwork_format':self.artwork_format,
                         'pantone':self.pantone,

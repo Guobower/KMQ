@@ -424,6 +424,9 @@
                     <!-- <field name="user_id" string="Project Manager"/> -->
                     <field name="partner_id" />
                     <field name="logo" />
+                    <field name="sale_person" />
+                    <field name="sale_number" />
+                    <field name="invoice_numbers" />
                     <field name="stage_id" />
                     <field name="deadline_date" />
                 </tree>

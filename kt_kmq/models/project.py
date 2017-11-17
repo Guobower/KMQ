@@ -82,6 +82,30 @@ class Project(models.Model):
     deadline_date = fields.Datetime('Deadline Date')
     artwork_upload_ids = fields.One2many('artwork.upload.details','project_id',string="Artwork Upload Details")
     logo = fields.Char(string="Logo")
+    sale_person = fields.Many2one('res.users', 'Sales Person', compute="get_sale_detail")
+    sale_number = fields.Many2one('sale.order', 'Sales Order', compute="get_sale_detail")
+    invoice_numbers = fields.Char('Invoices', compute="get_invoice_numbers")
+
+    @api.depends()
+    @api.multi
+    def get_invoice_numbers(self):
+        account_obj = self.env['account.invoice']
+        invoice_numbers = ''
+        for project in self:
+            invoices = account_obj.search([('associated_project', '=', project.id)])
+            for invoice in invoices:
+                invoice_numbers = invoice_numbers + ', ' + invoice.number
+            project.invoice_numbers = invoice_numbers.lstrip(', ')
+
+    @api.depends()
+    @api.multi
+    def get_sale_detail(self):
+        order_obj = self.env['sale.order']
+        for project in self:
+            sales = order_obj.search([('associated_project', '=', project.id)])
+            if sales:
+                project.sale_number = sales[0].id
+                project.sale_person = sales[0].user_id and sales[0].user_id.id
 
     def synch_data_daily(self):
 	    journal = self.env['account.journal'].search([('name','=','Bank')])
@@ -177,103 +201,95 @@ class Project(models.Model):
             inv.action_invoice_open()
 
 
-        @api.model
-        def create(self, values):
-                values['project_number'] = '#'+self.env['ir.sequence'].next_by_code('project.project')
-                new_id = super(Project,self).create(values)
-                return new_id
+    @api.model
+    def create(self, values):
+            values['project_number'] = '#'+self.env['ir.sequence'].next_by_code('project.project')
+            new_id = super(Project,self).create(values)
+            return new_id
 
-        def write(self, values):
-                approval_stage_id = self.env['project.stages'].search([('name','=','Artwork Design & Approval')])
-                res = super(Project,self).write(values)
-		mobile = self.partner_id.mobile
-		if values.has_key('stage_id'):
-                        stage_name = self.env['project.stages'].browse(values['stage_id']).name
-                        email_to = self.user_id and self.user_id.partner_id.email or ''
-                        body_html = ("""Dear %s ,<br/><br/>This is an email to notify you that the Project %s has been moved to stage %s.<br/><br/>Kind Regards<br/>""")% (self.user_id.name,self.name,stage_name)
-                        #Jagadeesh edn
-                        mail_vals = {
-                             'email_from':'info@kmqpromotions.com',
-                             'email_to': email_to,
-                             'email_cc':'raj@strategicdimensions.co.za,thabo@strategicdimensions.co.za',
-                             'subject':'Project stage changes notification',
-                             'body_html':body_html
-                                }
-                        res2 = self.env['mail.mail'].sudo().create(mail_vals)
+    def write(self, values):
+        approval_stage_id = self.env['project.stages'].search([('name','=','Artwork Design & Approval')])
+        res = super(Project,self).write(values)
+        mobile = self.partner_id.mobile
+        if values.has_key('stage_id'):
+            stage_name = self.env['project.stages'].browse(values['stage_id']).name
+            email_to = self.user_id and self.user_id.partner_id.email or ''
+            body_html = ("""Dear %s ,<br/><br/>This is an email to notify you that the Project %s has been moved to stage %s.<br/><br/>Kind Regards<br/>""")% (self.user_id.name,self.name,stage_name)
+            #Jagadeesh edn
+            mail_vals = {
+                 'email_from':'info@kmqpromotions.com',
+                 'email_to': email_to,
+                 'email_cc':'raj@strategicdimensions.co.za,thabo@strategicdimensions.co.za',
+                 'subject':'Project stage changes notification',
+                 'body_html':body_html
+                    }
+            res2 = self.env['mail.mail'].sudo().create(mail_vals)
 
-                if not mobile:
-                        raise UserError('Please capture mobile number for partner to send SMS.')
-		if values.has_key('stage_id') and values['stage_id'] == approval_stage_id.id:
-			template_obj = approval_stage_id.comm_template
-			if approval_stage_id.send_customer_comm:
-				template_obj.send_mail(self.id) 
-			if approval_stage_id.send_customer_sms:
-				sms_template_id = approval_stage_id.sms_template
-	                        if sms_template_id:
-        	                        gateway = self.env['sms.smsclient'].search([])
-                	                body = self.env['mail.template'].render_template(sms_template_id.body_html,'project.project',self.id)
-                        	        url = gateway.url
-	                                name = url
-	                                ref = ''
-        	                        if gateway.method == 'http':
-                	                       prms = {}
-                        	               for p in gateway.property_ids:
-                                	           if p.type == 'user':
-                                        	       prms[p.name] = p.value
-	                                           elif p.type == 'password':
-        	                                       prms[p.name] = p.value
-                	                           elif p.type == 'to':
-                        	                       prms[p.name] = mobile
-                                	           elif p.type == 'sender':
-                                        	       prms[p.name]= p.value
-	                                           elif p.type == 'sms':
-        	                                        prms[p.name] = body
-                	                           elif p.type == 'extra':
-                        	                        prms[p.name] = p.value
-                                	       params = urllib.urlencode(prms)
-	                                       name = url + "?" + params
-        	                               queue_obj = self.env['sms.smsclient.queue']
-                	                       values = {
-                        	                   'name': name,
-                                	           'gateway_id':gateway.id,
-                                        	   'state': 'draft',
-	                                           'mobile': mobile,
-        	                                   'msg':html2text.html2text(sms_template_id.body_html) or '' #body #Raaj
-                	                         }
-                        	               queue_obj.sudo().create(values)
-	                self.message_post(body=(str(html2text.html2text(sms_template_id.body_html))), context=None)
+        if not mobile:
+            raise UserError('Please capture mobile number for partner to send SMS.')
+        if values.has_key('stage_id') and values['stage_id'] == approval_stage_id.id:
+            template_obj = approval_stage_id.comm_template
+            if approval_stage_id.send_customer_comm:
+                template_obj.send_mail(self.id) 
+            if approval_stage_id.send_customer_sms:
+                sms_template_id = approval_stage_id.sms_template
+                if sms_template_id:
+                    gateway = self.env['sms.smsclient'].search([])
+                    body = self.env['mail.template'].render_template(sms_template_id.body_html,'project.project',self.id)
+                    url = gateway.url
+                    name = url
+                    ref = ''
+                    if gateway.method == 'http':
+                        prms = {}
+                        for p in gateway.property_ids:
+                            if p.type == 'user':
+                                prms[p.name] = p.value
+                            elif p.type == 'password':
+                                prms[p.name] = p.value
+                            elif p.type == 'to':
+                                prms[p.name] = mobile
+                            elif p.type == 'sender':
+                                prms[p.name]= p.value
+                            elif p.type == 'sms':
+                                prms[p.name] = body
+                            elif p.type == 'extra':
+                                prms[p.name] = p.value
+                                params = urllib.urlencode(prms)
+                                name = url + "?" + params
+                                queue_obj = self.env['sms.smsclient.queue']
+                                values = {
+                                    'name': name,
+                                    'gateway_id':gateway.id,
+                                    'state': 'draft',
+                                    'mobile': mobile,
+                                    'msg':html2text.html2text(sms_template_id.body_html) or '' #body #Raaj
+                                    }
+                                queue_obj.sudo().create(values)
+                self.message_post(body=(str(html2text.html2text(sms_template_id.body_html))), context=None)
+            return res
 
-                return res
+    def show_invoice(self):
+        action = self.env.ref('account.action_invoice_refund_out_tree')
+        result = action.read()[0]
+        result['domain'] = [('associated_project', '=', self.id)]
+        return result
 
-
-
-	def show_invoice(self):
-        	action = self.env.ref('account.action_invoice_refund_out_tree')
-	        result = action.read()[0]
-        	result['domain'] = [('associated_project', '=', self.id)]
-	        return result
-
-	def show_deliveries(self):
-		origins = []
-                sale_orders = self.env['sale.order'].search([('associated_project','=',self.id)])
-                """for order in sale_orders:
-                        origins.append(order.name)
-                action = self.env.ref('stock.action_picking_tree_all')
-                result = action.read()[0]
-                result['domain'] = [('origin','in',origins)]"""
-
-		action = self.env.ref('stock.action_picking_tree_all').read()[0]
-	
-        	pickings = sale_orders.mapped('picking_ids')
-	        if len(pickings) > 1:
-        	    action['domain'] = [('id', 'in', pickings.ids)]
-	        elif pickings:
-        	    action['views'] = [(self.env.ref('stock.view_picking_form').id, 'form')]
-	            action['res_id'] = pickings.id
-        	return action
-
-                #return result
-
+    def show_deliveries(self):
+        origins = []
+        sale_orders = self.env['sale.order'].search([('associated_project','=',self.id)])
+#         for order in sale_orders:
+#                 origins.append(order.name)
+#         action = self.env.ref('stock.action_picking_tree_all')
+#         result = action.read()[0]
+#         result['domain'] = [('origin','in',origins)]
+        action = self.env.ref('stock.action_picking_tree_all').read()[0]
+        pickings = sale_orders.mapped('picking_ids')
+        if len(pickings) > 1:
+            action['domain'] = [('id', 'in', pickings.ids)]
+        elif pickings:
+            action['views'] = [(self.env.ref('stock.view_picking_form').id, 'form')]
+            action['res_id'] = pickings.id
+        return action
 
 
 class SignatureRequestTemplate(models.Model):

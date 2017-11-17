@@ -174,7 +174,6 @@ class AccountInvoice(models.Model):
         client_data = {"username" : "Daniel"}
         client_data_resp = requests.post(url='http://letsap.dedicated.co.za/portmapping/CompanyList.asmx/GetCompanyList', headers=headers, json=client_data)
         client_data_res = json.loads(client_data_resp.content)
-
         for data in client_data_res['d']:
             if data['Alias'] == 'PASTELTEST-PC':
                 client_handle = data['ClientHandle'] 
@@ -353,7 +352,7 @@ class AccountInvoice(models.Model):
             order_id = line_id[0].order_id
         if order_id:
             if order_id.state in ['sale', 'done'] and order_id.invoice_status == 'invoiced' and order_id.has_branding == True:
-                project_id = self.env['project.project'].create({'name':'Proj' + self.number,
+                project_id = self.env['project.project'].create({'name':'PROJ: ' + order_id.number,
                                                                  'job_type':self.job_type,
                                                                  'artwork_format':self.artwork_format,
                                                                  'pantone':self.pantone,
@@ -373,7 +372,7 @@ class AccountInvoice(models.Model):
                 continue
         print"client_handle===========", client_handle
 #     	for data in client_data_res['d']:
-#     		if data['Alias'] == 'PASTELTEST-PC':
+#     		if data['Alias'] == 'PASTELCONNECT':
 # 		        client_handle = data['ClientHandle'] 
 #     			continue
  
