@@ -1,27 +1,3 @@
-.my_customize_status_green_old {
-    color: white;
-    top: 255px;
-    left: 45px;
-    background: green;
-    font-size: xx-small;
-    font-family : monospace; 
-}
-
-.my_customize_status_red2 {
-    color: red ;
-    top: 255px;
-    left: 45px
-}
-
-.my_customize_status_red_old {
-    color: black;
-    top: 255px;
-    left: 45px;
-    background: red;
-    font-size: xx-small;
-    font-family : monospace;
-}
-
 .my_customize_status_green{
     color:white;
     background:green;

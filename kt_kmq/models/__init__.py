@@ -6,3 +6,4 @@ import product
 import stock_picking
 import mail_thread
 import res_partner
+import product_branding

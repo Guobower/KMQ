@@ -65,6 +65,19 @@ class PricelistItem(models.Model):
     _description = "Pricelist item"
     _order = "applied_on, min_quantity desc, categ_id desc,fixed_price desc"
 
+    fixed_price = fields.Float('Fixed Price', digits=dp.get_precision('Product Price'))
+    
+    @api.multi
+    def set_price(self):
+        print"set_price========",self
+        tmpl_id = self.product_tmpl_id.id
+        pricelist_items = self.search([('product_tmpl_id', '=', tmpl_id)])
+        print"pricelist_items=========",pricelist_items
+        
+#     @api.onchange('fixed_price')
+#     def onchange_fixed_price(self):
+#         
+
 class Product(models.Model):
     _inherit = "product.product"
 
@@ -73,45 +86,55 @@ class Product(models.Model):
     sale_stock_available = fields.Float('Sale Orders',compute='_compute_quantities_revised',digits=dp.get_precision('Product Unit of Measure'))
     purchase_stock_available = fields.Float('Purchase Orders',compute='_compute_quantities_revised',digits=dp.get_precision('Product Unit of Measure'))
     created_at_pastel = fields.Boolean('Created at Pastel')
+    page_number = fields.Char('Page Number')
+    size = fields.Char('Size')
+    box_size = fields.Char('Box Size')
+    qty_per_box = fields.Float('Qty per Box')
+    weight_per_box = fields.Float('Weight per Box')
+    pricelist_item_ids = fields.Many2many('product.pricelist.item', 'Pricelist Items')
 
     #@api.depends('stock_quant_ids', 'stock_move_ids')
     def _compute_quantities_revised(self):
-	#qty_inv = 0
-	#sale_qty_inv = 0
-	#wh_stock_location_id = self.env['stock.location'].search([('complete_name','=','WH/Stock')]).id
-	#004_stock_location_id = self.env['stock.location'].search([('complete_name','=','004/Stock')]).id
-	a = "WH/Stock"
+        #qty_inv = 0
+        #sale_qty_inv = 0
+        #wh_stock_location_id = self.env['stock.location'].search([('complete_name','=','WH/Stock')]).id
+        #004_stock_location_id = self.env['stock.location'].search([('complete_name','=','004/Stock')]).id
+        a = "WH/Stock"
         b = "004/Stock"
 
-	wh_stock_location_id = self.env['stock.location'].search([('complete_name','=',a)]).id
+        wh_stock_location_id = self.env['stock.location'].search([('complete_name','=',a)]).id
         wh_stock_location_id_4 = self.env['stock.location'].search([('complete_name','=',b)]).id
 
-
         for product in self:
-	    sale_qty_inv = 0
-	    qty_inv = 0
+            sale_qty_inv = 0
+            qty_inv = 0
             sale_order_lines = self.env['sale.order.line'].search([('state', 'in', ['sale', 'done']),('product_id','=',product.id)])
-	    if sale_order_lines:
-	    	for line in sale_order_lines:
-	        	qty_inv+=line.qty_invoiced
-			sale_qty_inv+= (line.qty_to_invoice)
-		product.stock_available = product.with_context({'location' : wh_stock_location_id}).qty_available - product.with_context({'location' : wh_stock_location_id}).outgoing_qty#qty_inv
-
-	        product.sale_stock_available = sale_qty_inv#product.qty_available - qty_inv
-		#product.purchase_stock_available = product.qty_available - qty_inv
-	    else:
-	        product.stock_available = product.with_context({'location' : wh_stock_location_id}).qty_available #product.qty_available
-
-	    product.stock_available2 = product.with_context({'location' : wh_stock_location_id_4}).qty_available
-	    
-	    stock_move_lines = self.env['stock.move'].search([('state', 'in', ['assigned']),('product_id','=',product.id)])	
-	    purchase_qty_inv = 0
-	    if stock_move_lines:
-		for line in stock_move_lines:
-			if line.picking_id.state != 'done' and line.picking_id.picking_type_id.name == 'Receipts':
-				purchase_qty_inv+=line.product_uom_qty
+            if sale_order_lines:
+                for line in sale_order_lines:
+                    qty_inv+=line.qty_invoiced
+                    sale_qty_inv+= (line.qty_to_invoice)
+                    product.stock_available = product.with_context({'location' : wh_stock_location_id}).qty_available - product.with_context({'location' : wh_stock_location_id}).outgoing_qty#qty_inv
+                    product.stock_available2 = product.with_context({'location' : wh_stock_location_id_4}).qty_available
+                    product.sale_stock_available = sale_qty_inv#product.qty_available - qty_inv
+                
+                stock_move_lines = self.env['stock.move'].search([('state', 'in', ['assigned']),('product_id','=',product.id)])    
+                purchase_qty_inv = 0
+                if stock_move_lines:
+                    for line in stock_move_lines:
+                        if line.picking_id.state != 'done' and line.picking_id.picking_type_id.name == 'Receipts':
+                            purchase_qty_inv+=line.product_uom_qty
                 product.purchase_stock_available = purchase_qty_inv
-	    
+                    #product.purchase_stock_available = product.qty_available - qty_inv
+            else:
+                product.stock_available = product.with_context({'location' : wh_stock_location_id}).qty_available #product.qty_available
+                product.stock_available2 = product.with_context({'location' : wh_stock_location_id_4}).qty_available
+                stock_move_lines = self.env['stock.move'].search([('state', 'in', ['assigned']),('product_id','=',product.id)])	
+                purchase_qty_inv = 0
+                if stock_move_lines:
+                    for line in stock_move_lines:
+                        if line.picking_id.state != 'done' and line.picking_id.picking_type_id.name == 'Receipts':
+                            purchase_qty_inv+=line.product_uom_qty
+                product.purchase_stock_available = purchase_qty_inv
 
     @api.multi
     def import_product_images(self,product_ids):
@@ -137,15 +160,10 @@ class Product(models.Model):
         client_data = {"username" : "Daniel"}
         client_data_resp = requests.post(url='http://letsap.dedicated.co.za/portmapping/CompanyList.asmx/GetCompanyList', headers=headers,  json=client_data)
         client_data_res = json.loads(client_data_resp.content)
-        for data in client_data_res['d']:
-            if data['Alias'] == 'PASTELTEST-PC':
-                client_handle = data['ClientHandle']
-                continue
-#         for data in client_data_res['d']:
-#             if data['Alias'] == 'PASTELCONNECT':
-#                 client_handle = data['ClientHandle']
-#                 continue
-        print"client_handle==========",client_handle
+	for data in client_data_res['d']:
+                if data['Alias'] == 'PASTELCONNECT':
+                        client_handle = data['ClientHandle']
+                        continue
 
         #client_handle = client_data_res['d'][0]['ClientHandle']
 	if vals.has_key('product_tmpl_id') and vals['product_tmpl_id']:

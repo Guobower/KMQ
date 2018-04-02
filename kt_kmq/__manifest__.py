@@ -23,6 +23,9 @@
 		'report/stock_operation_report.xml',
 		'security/ir.model.access.csv',
 		'security/sale_security.xml', #Jagadeesh
+        'report/invoice_stock_report.xml',
+        'wizard/inventory_check_wizard_views.xml',
+        'views/product_view.xml',
             ],
     'installable': True,
     'application': True,

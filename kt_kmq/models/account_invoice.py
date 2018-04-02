@@ -7,6 +7,7 @@ import MySQLdb
 import base64
 import StringIO
 from odoo.exceptions import UserError, RedirectWarning, ValidationError, Warning
+from odoo.tools.float_utils import float_compare
 
 epoch = datetime.utcfromtimestamp(0)
 
@@ -160,6 +161,8 @@ class AccountInvoice(models.Model):
     artwork_format = fields.Selection([('Wording', 'Wording'), ('Jpeg', 'Jpeg'), ('PDF', 'PDF'), ('Other', 'Other')], string="Artwork Format")
     pantone = fields.Char('Pantone')
     deadline_date = fields.Datetime('Deadline Date')
+    sale_id = fields.Many2one('sale.order', string='Sale Order')
+    invoice_printed = fields.Boolean('Invoice Printed')
 
     def unix_time_millis(dt):
 	return (dt - epoch).total_seconds() * 1000.0
@@ -175,7 +178,7 @@ class AccountInvoice(models.Model):
         client_data_resp = requests.post(url='http://letsap.dedicated.co.za/portmapping/CompanyList.asmx/GetCompanyList', headers=headers, json=client_data)
         client_data_res = json.loads(client_data_resp.content)
         for data in client_data_res['d']:
-            if data['Alias'] == 'PASTELTEST-PC':
+            if data['Alias'] == 'PASTELCONNECT':
                 client_handle = data['ClientHandle'] 
                 continue
         print"client_handle========", client_handle
@@ -260,7 +263,7 @@ class AccountInvoice(models.Model):
                 val["_taxType"] = 1
                 val["_taxPercent"] = "14"
                 val["_discountType"] = 0
-                val["_costPrice"] = line.price_unit
+                val["_costPrice"] = 0
                 val["_quantity"] = int(line.quantity)
                 val["_packSizeCode"] = ""
                 val["_packSizeQty"] = 0
@@ -345,29 +348,12 @@ class AccountInvoice(models.Model):
         if not self.name and self.type == 'out_refund':
             raise UserError(_('Please add a reference for this Invoice.'))
 
-        # lots of duplicate calls to action_invoice_open, so we remove those already open
-        res = super(AccountInvoice, self).action_invoice_open()
-        line_id = [line.sale_line_ids for line in self.invoice_line_ids if line.sale_line_ids]
-        if line_id:
-            order_id = line_id[0].order_id
-        if order_id:
-            if order_id.state in ['sale', 'done'] and order_id.invoice_status == 'invoiced' and order_id.has_branding == True:
-                project_id = self.env['project.project'].create({'name':'PROJ: ' + order_id.number,
-                                                                 'job_type':self.job_type,
-                                                                 'artwork_format':self.artwork_format,
-                                                                 'pantone':self.pantone,
-                                                                 'deadline_date':self.deadline_date,
-                                                                 'partner_id':self.partner_id.id})
-                if project_id:
-                    self.write({'associated_project':project_id.id})
-                    order_id.write({'associated_project':project_id.id})
-
         headers = {"Content-type": "application/json"}
         client_data = {"username" : "Daniel"}
         client_data_resp = requests.post(url='http://letsap.dedicated.co.za/portmapping/CompanyList.asmx/GetCompanyList', headers=headers, json=client_data)
         client_data_res = json.loads(client_data_resp.content)
         for data in client_data_res['d']:
-            if data['Alias'] == 'PASTELTEST-PC':
+            if data['Alias'] == 'PASTELCONNECT':
                 client_handle = data['ClientHandle'] 
                 continue
         print"client_handle===========", client_handle
@@ -375,7 +361,7 @@ class AccountInvoice(models.Model):
 #     		if data['Alias'] == 'PASTELCONNECT':
 # 		        client_handle = data['ClientHandle'] 
 #     			continue
- 
+  
         data = {"clientHandle" : client_handle, "customerID" : str(self.partner_id.parent_id and self.partner_id.parent_id.ref or self.partner_id.ref)}
         resp = requests.post(url='http://letsap.dedicated.co.za/Letsap.Framework.WebHost/KMQAPIService.svc/GetCustomer', headers=headers, json=data)
         jd = json.loads(resp.content)
@@ -385,6 +371,12 @@ class AccountInvoice(models.Model):
             doctype = 8
             part_doc_type = "108"
             order_ref = self.reference
+            resp_inv_num = requests.post(url='http://letsap.dedicated.co.za/Letsap.Framework.WebHost/KMQAPIService.svc/GetNextDocumentNumber', headers=headers, json={'clientHandle':client_handle, 'globalNumbers':True, 'userid':1, 'docType':doctype})
+            jd_inv_num = json.loads(resp_inv_num.content)
+            vendor_bill = self.env['ir.sequence'].search([('code', '=', 'Vendor Bills')])
+            number = str(jd_inv_num.get('GetNextDocumentNumberResult'))
+            if len(number) == 8:
+                vendor_bill.number_next_actual = number.lstrip('SIN')
             # next_seq = self.env['ir.sequence'].next_by_code('Vendor Bills')
         elif self.type == 'out_invoice':
             doctype = 3
@@ -400,8 +392,33 @@ class AccountInvoice(models.Model):
             doctype = 9
             part_doc_type = "109"
             der_ref = self.origin
+            resp_inv_num = requests.post(url='http://letsap.dedicated.co.za/Letsap.Framework.WebHost/KMQAPIService.svc/GetNextDocumentNumber', headers=headers, json={'clientHandle':client_handle, 'globalNumbers':True, 'userid':1, 'docType':doctype})
+            jd_inv_num = json.loads(resp_inv_num.content)
+            vendor_refund = self.env['ir.sequence'].search([('code', '=', 'Vendor Refunds')])
+            number = str(jd_inv_num.get('GetNextDocumentNumberResult'))
+            if len(number) == 8:
+                vendor_refund.number_next_actual = number.lstrip('SDN')
+
+        res = super(AccountInvoice, self).action_invoice_open()
+        line_id = [line.sale_line_ids for line in self.invoice_line_ids if line.sale_line_ids]
+        if line_id:
+            order_id = line_id[0].order_id
+        if self.sale_id:
+            if self.sale_id.amount_total != self.amount_total:
+                raise ValidationError(_('Cannot validate invoice.\n Invoice amount does not match the sales order amount.'))
+            if self.sale_id.state in ['sale', 'done'] and self.sale_id.invoice_status == 'invoiced' and self.sale_id.has_branding == True:
+                project_id = self.env['project.project'].create({'name':'PROJ: ' + self.sale_id.name,
+                                                                 'job_type':self.job_type,
+                                                                 'artwork_format':self.artwork_format,
+                                                                 'pantone':self.pantone,
+                                                                 'deadline_date':self.deadline_date,
+                                                                 'partner_id':self.partner_id.id})
+                if project_id:
+                    self.write({'associated_project':project_id.id})
+                    self.sale_id.write({'associated_project':project_id.id})
+
         # next_seq = self.env['ir.sequence'].next_by_code('Vendor Refunds')
- 
+  
         # # Date Changes
         # self.date_invoice = datetime.now().date()
         a = datetime.strptime(str(self.date_invoice), '%Y-%m-%d')
@@ -409,7 +426,7 @@ class AccountInvoice(models.Model):
         self._onchange_payment_term_date_invoice()
         b = datetime.strptime(str(self.date_due), '%Y-%m-%d')
         b = int(unix_time_millis(b))
- 
+  
         lt = []
         delivery_street = delivery_street2 = delivery_city = delivery_zip1 = delivery_state = delivery_country = state_name = country_name = ''
         if self.partner_shipping_id:
@@ -433,6 +450,11 @@ class AccountInvoice(models.Model):
             arrayofdocumentlinefullmodel = []
             inv_created = False
             for line in self.invoice_line_ids:
+                tax = "0.0"
+                for tax in line.invoice_line_tax_ids:
+                    tax_percent = str(tax.amount)
+                    tax_type = int(tax.pastel_tax_type)
+                    break
                 # if self.type not in ['out_invoice','in_invoice','in_refund']:
                 # 	line.price_unit = -(line.price_unit)
                 val = {}
@@ -447,10 +469,10 @@ class AccountInvoice(models.Model):
                 val["_unit"] = ""
                 val["_salesmanID"] = "00000000-0000-0000-0000-000000000000"
                 val["_forceTax"] = False
-                val["_taxType"] = 1
-                val["_taxPercent"] = "14"
+                val["_taxType"] = tax_type #1
+                val["_taxPercent"] = tax_percent #"14"
                 val["_discountType"] = 0
-                val["_costPrice"] = line.price_unit
+                val["_costPrice"] = 0
                 val["_quantity"] = int(line.quantity)
                 val["_packSizeCode"] = ""
                 val["_packSizeQty"] = 0
@@ -506,7 +528,7 @@ class AccountInvoice(models.Model):
                 val["_lineType"] = 1
                 val["_project"] = None
                 arrayofdocumentlinefullmodel.append(val)
- 
+  
         inv_dict = {
             "clientHandle" : client_handle,
             "documentFM" : documentfullmodel,
@@ -516,7 +538,9 @@ class AccountInvoice(models.Model):
             "emailPDFDoc" : True,
             "emailAddress" : ""
         }
- 
+
+        resp_inv_create_content = ''
+
         try:
             url = "http://letsap.dedicated.co.za/Letsap.Framework.WebHost/KMQAPIService.svc/GetTestConnection/" + str(client_handle)
             conn = requests.get(url)
@@ -526,12 +550,12 @@ class AccountInvoice(models.Model):
                 resp_inv_create_content = json.loads(resp_inv_create.content).get('SaveDocumentResult')
                 if resp_inv_create_content.strip() == inv_number:
                     self.created_at_pastel = True
- 
+
                 self.message_post(body=resp_inv_create_content)
                 if not self.created_at_pastel:
                     raise Warning(
                                   _("Cannot Validate Invoice: %s") % (resp_inv_create_content))
- 
+
         except Exception, e:
             print "Exception is:", e
             self.message_post(body=e)
@@ -556,7 +580,7 @@ class AccountInvoice(models.Model):
     def _compute_amount(self):
 
 	# total_brands_amount = sum(rec.total_cost for rec in self.account_product_branding_ids) #Jagadeesh
-        self.amount_untaxed = sum(line.price_subtotal for line in self.invoice_line_ids)  # +total_brands_amount #Jagadeesh
+        self.amount_untaxed = sum(round(line.price_subtotal,2) for line in self.invoice_line_ids)  # +total_brands_amount #Jagadeesh
         self.amount_tax = sum(line.amount for line in self.tax_line_ids)
         self.amount_total = self.amount_untaxed + self.amount_tax
         amount_total_company_signed = self.amount_total
@@ -575,6 +599,7 @@ class AccountInvoice(models.Model):
     def get_taxes_values(self):
         ''' overrided base method '''
         tax_grouped = {}
+        key_list = []
         for line in self.invoice_line_ids:
             price_unit = line.price_unit * (1 - (line.discount or 0.0) / 100.0)
             taxes = line.invoice_line_tax_ids.compute_all(price_unit, self.currency_id, line.quantity, line.product_id, self.partner_id)['taxes']
@@ -584,14 +609,23 @@ class AccountInvoice(models.Model):
                 if tax['name'] == 'Tax 14.00%':
                     tax['amount'] = (tax['base'] * 14) / 100
                 # Jagadeesh oct 27
+                tax_amount = (self.sale_order_id.pricelist_id.currency_id.round(tax['amount'])), #tax['amount']
+                tax['amount'] = tax_amount and tax_amount[0] or 0.0
                 val = self._prepare_tax_line_vals(line, tax)
                 key = self.env['account.tax'].browse(tax['id']).get_grouping_key(val)
+                key_list.append(key)
 
                 if key not in tax_grouped:
                     tax_grouped[key] = val
                 else:
                     tax_grouped[key]['amount'] += val['amount']
                     tax_grouped[key]['base'] += val['base']
+        key_list = list(set(key_list))
+        for k in key_list:
+            tax_line = tax_grouped.get(k)
+            if tax_line.get('name') == 'Tax 14.00%':
+                tax_line.update({'amount': (tax_line.get('base') * 14) / 100})
+            tax_grouped.update({k: tax_line})
         return tax_grouped
 
 
@@ -645,7 +679,7 @@ class AccountPayment(models.Model):
             ref_amount = float(self.amount)
 
         for data in client_data_res['d']:
-            if data['Alias'] == 'PASTELTEST-PC':
+            if data['Alias'] == 'PASTELCONNECT':
                 client_handle = data['ClientHandle']
                 continue
 #         for data in client_data_res['d']:
@@ -732,7 +766,7 @@ class AccountPayment(models.Model):
                 resp = requests.post(url='http://letsap.dedicated.co.za/Letsap.Framework.WebHost/KMQAPIService.svc/ImportGLBatch', headers=headers, json=my_dict2(data_send))
 
             elif inv_obj.type in ['out_invoice', 'out_refund']:
-            	resp = requests.post(url='http://letsap.dedicated.co.za/Letsap.Framework.WebHost/KMQAPIService.svc/ImportGLBatch', headers=headers, json=my_dict2(data_receive))
+                resp = requests.post(url='http://letsap.dedicated.co.za/Letsap.Framework.WebHost/KMQAPIService.svc/ImportGLBatch', headers=headers, json=my_dict2(data_receive))
 
         except Exception, e:
                 print "Exception is:", e
@@ -758,4 +792,8 @@ class AccountPaymentTerm(models.Model):
 	term_value = fields.Integer(compute='_get_term_value', string='Term Value')
 
 
+class AccountTax(models.Model):
+    _inherit = 'account.tax'
+
+    pastel_tax_type = fields.Char('Pastel Tax type')
 

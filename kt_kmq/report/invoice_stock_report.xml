@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data>
+
+        <template id="invoice_stock_report">
+            <t t-call="report.html_container">
+                <t t-foreach="get_invoice" t-as="invoice">
+                    <t t-set="o" t-value="invoice"/>
+                    <t t-call="account.report_invoice_document" t-lang="o.partner_id.lang" />
+                </t>
+            </t>
+            <t t-call="report.html_container">
+                <t t-foreach="get_picking" t-as="picking">
+                    <t t-set="docs" t-value="picking"/>
+                    <t t-call="stock.report_picking" t-lang="docs.partner_id.lang" />
+                </t>
+            </t>
+        </template>
+        
+        <template id="invoice_report_kmq">
+            <t t-call="report.html_container">
+                <t t-foreach="range(1,3)" t-as="page">
+                <t t-foreach="get_invoice" t-as="invoice">
+                    <t t-set="o" t-value="invoice"/>
+                    <t t-set="on_page" t-value="page"/>
+                    <t t-call="account.report_invoice_document" t-lang="o.partner_id.lang" />
+                </t></t>
+            </t>
+        </template>
+        
+        <template id="stock_report_kmq">
+            <t t-call="report.html_container">
+                <t t-set="sales" t-value="docs"/>
+                <t t-if='not sales.has_branding'>
+                <t t-foreach="get_picking" t-as="picking">
+                    <t t-set="docs" t-value="picking"/>
+                    <t t-call="stock.report_picking" t-lang="docs.partner_id.lang" />
+                </t></t>
+                <t t-if='sales.has_branding'>
+                    <t t-foreach="range(1,5)" t-as="page">
+                        <t t-foreach="get_picking" t-as="picking">
+                            <t t-set="docs" t-value="picking"/>
+                            <t t-call="stock.report_picking" t-lang="docs.partner_id.lang" />
+                        </t>
+                    </t>
+                </t>
+            </t>
+        </template>
+
+    </data>
+</odoo>

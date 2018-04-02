@@ -16,7 +16,11 @@
                     <header>
                         <button name="block_account" type="object" class="oe_highlight" string="Block Account" attrs="{'invisible':[('account_blocked','=',True)]}"/><br/><br/>
                         <button name="unblock_account"  type="object" class="oe_highlight" string="Unblock Account" attrs="{'invisible':[('account_blocked','=',False)]}"/>
+                        <button name="create_on_pastel"  type="object" class="oe_highlight" string="Create Customer in Pastel" attrs="{'invisible':[('created_at_pastel','=',True)]}"/>
                     </header>
+                </xpath>
+                <xpath expr="//notebook/page[@name='sales_purchases']/group/group/field[@name='user_id']" position="replace">
+                    <field name="user_id" required='1'/>
                 </xpath>
             </field>
         </record>

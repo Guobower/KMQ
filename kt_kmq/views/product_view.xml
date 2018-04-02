@@ -1,0 +1,86 @@
+<odoo>
+    <data>
+        <record id="view_stock_move_search_kt_kmq" model="ir.ui.view">
+            <field name="name">stock.move.search.inh</field>
+            <field name="model">stock.move</field>
+            <field name="inherit_id" ref="stock.view_move_search"/>
+            <field name="arch" type="xml">
+                <xpath expr="//filter[3]" position="after">
+                    <filter name="state_available" string="Available" domain="[('state','=','assigned')]"/>
+                    <separator/>
+                    <filter name="picking_receipts" string="Receipts" domain="[('picking_type_id.name','=','Receipts')]"/>
+                </xpath>
+            </field>
+        </record>
+
+        <record id="act_product_incoming_stock_move_open" model="ir.actions.act_window">
+            <field name="context">{'search_default_product_id': active_id, 'search_default_state_available': 1, 'search_default_picking_receipts': 1, 'default_product_id': active_id}</field>
+            <field name="name">Moves</field>
+            <field name="res_model">stock.move</field>
+            <field name="view_id" ref="stock.view_move_tree"/>
+        </record>
+
+        <record id="sale.product_form_view_sale_order_button_kt_kmq" model="ir.ui.view">
+            <field name="name">product.product.form.inh</field>
+            <field name="model">product.product</field>
+            <field name="inherit_id" ref="sale.product_form_view_sale_order_button"/>
+            <field name="arch" type="xml">
+                <div name="button_box" position="inside">
+                    <button string="Purchases" type="action" name="%(act_product_incoming_stock_move_open)d" attrs="{'invisible':[('type', 'not in', ['product', 'consu'])]}" class="oe_stat_button" icon="fa-shopping-cart" groups="stock.group_stock_user"/>
+                </div>
+            </field>
+        </record>
+
+        <record id="product_normal_form_view_kt_kmq" model="ir.ui.view">
+            <field name="name">product.product.form.inh</field>
+            <field name="model">product.product</field>
+            <field name="inherit_id" ref="product.product_normal_form_view"/>
+            <field name="arch" type="xml">
+                <xpath expr="//field[@name='pricelist_item_ids']/tree/field[@name='name']" position="after">
+                    <field name="pricelist_id"/>
+                </xpath>
+            </field>
+         </record>
+
+         <record id="product_normal_form_view_kt_kmq_inherit" model="ir.ui.view">
+            <field name="name">product.product.form.inh</field>
+            <field name="model">product.product</field>
+            <field name="groups_id" eval="[(6, 0, [ref('sales_team.group_sale_manager')])]"/>
+            <field name="inherit_id" ref="kt_kmq.product_normal_form_view_kt_kmq"/>
+            <field name="arch" type="xml">
+                <xpath expr="//field[@name='pricelist_item_ids']" position="attributes">
+                    <attribute name="readonly">False</attribute>
+                </xpath>
+                <xpath expr="//field[@name='pricelist_item_ids']/tree/field[@name='price']" position="before">
+                    <field name="fixed_price" readonly="0"/>
+                </xpath>
+            </field>
+         </record>
+
+         <record id="product_pricelist_item_form_view_kt_kmq" model="ir.ui.view">
+            <field name="name">product.pricelist.item.form.inh</field>
+            <field name="model">product.pricelist.item</field>
+            <field name="groups_id" eval="[(6, 0, [ref('sales_team.group_sale_manager')])]"/>
+            <field name="inherit_id" ref="product.product_pricelist_item_form_view"/>
+            <field name="arch" type="xml">
+                <xpath expr="//field[@name='fixed_price']" position="attributes">
+                    <attribute name="readonly">False</attribute>
+                </xpath>
+            </field>
+        </record>
+
+         <record id="view_stock_product_tree_kt_kmq" model="ir.ui.view">
+            <field name="name">product.product.tree.inh</field>
+            <field name="model">product.product</field>
+            <field name="inherit_id" ref="stock.view_stock_product_tree"/>
+            <field name="arch" type="xml">
+                <field name="qty_available" position="replace">
+                    <field name="qty_available" invisible="1"/>
+                </field>
+                <field name="virtual_available" position="replace">
+                    <field name="virtual_available" invisible="1"/>
+                </field>
+            </field>
+         </record>
+    </data>
+</odoo>

@@ -20,12 +20,38 @@
 	</xpath>
     </template>
 
+    <report id="stock_invoice_report"
+            string="Invoice Picking Report"
+            model="sale.order"
+            report_type="qweb-pdf"
+            name="kt_kmq.invoice_stock_report"
+            file="kt_kmq.invoice_stock_report"
+            menu="False"
+        />
+    
+    <report id="kmq_invoice_report"
+            string="Invoice Report"
+            model="sale.order"
+            report_type="qweb-pdf"
+            name="kt_kmq.invoice_report_kmq"
+            file="kt_kmq.invoice_report_kmq"
+            menu="False"
+        />
+    <report id="kmq_stock_report"
+            string="Picking Report"
+            model="sale.order"
+            report_type="qweb-pdf"
+            name="kt_kmq.stock_report_kmq"
+            file="kt_kmq.stock_report_kmq"
+            menu="False"
+        />
+
     <report id="stock.action_report_picking" 
             string="Picking Operations"
             model="stock.picking"
             report_type="qweb-pdf"
             name="stock.report_picking"
-            file="stock.report_picking_operations"          
+            file="stock.report_picking_operations"
             menu="True"
         />
 

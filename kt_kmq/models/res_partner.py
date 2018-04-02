@@ -12,7 +12,7 @@ import StringIO
 import cStringIO
 import base64
 import requests
-import xmltodict
+# import xmltodict
 epoch = datetime.utcfromtimestamp(0)
 
 def unix_time_millis(dt):
@@ -45,13 +45,15 @@ class ResPartner(models.Model):
 
     @api.multi
     def update_account_blocking(self,block):
-
         headers = {"Content-type": "application/json"}
         client_data = {"username" : "Daniel"}
         client_data_resp = requests.post(url='http://letsap.dedicated.co.za/portmapping/CompanyList.asmx/GetCompanyList', headers=headers,  json=client_data)
         client_data_res = json.loads(client_data_resp.content)
-        client_handle = client_data_res['d'][0]['ClientHandle']
-
+        for data in client_data_res['d']:
+            if data['Alias'] == 'PASTELCONNECT':
+                client_handle = data['ClientHandle'] 
+                continue
+#         client_handle = client_data_res['d'][0]['ClientHandle']
         requestData = {"clientHandle":str(client_handle),"customerID":str(self.ref)}
         partner_data_resp = requests.post(url='http://letsap.dedicated.co.za/Letsap.Framework.WebHost/KMQAPIService.svc/GetCustomer', headers=headers,  json=requestData)
         final_data = json.loads(partner_data_resp.content)
@@ -62,10 +64,10 @@ class ResPartner(models.Model):
         #        create_date = final_data['GetCustomerResult']['_createDate']
         if final_data.has_key('GetCustomerResult'):
             final_data['GetCustomerResult']['_blocked'] = block
-	    test = block
-	elif final_data.has_key('GetSupplierResult'):
-	    final_data['GetSupplierResult']['_blocked'] = block
-	    test = block
+            test = block
+        elif final_data.has_key('GetSupplierResult'):
+            final_data['GetSupplierResult']['_blocked'] = block
+            test = block
 
         if self.company_type == 'company' and self.customer:
             data = {"clientHandle": str(client_handle),"Customer":final_data['GetCustomerResult']}
@@ -73,13 +75,12 @@ class ResPartner(models.Model):
             data = {"clientHandle": str(client_handle),"supplier":final_data['GetSupplierResult']}
 
         try:
-                url = "http://letsap.dedicated.co.za/Letsap.Framework.WebHost/KMQAPIService.svc/GetTestConnection/"+str(client_handle)
-                conn = requests.get(url)
-                if conn.status_code == 200:
-                     save_customer = requests.post(url='http://letsap.dedicated.co.za/Letsap.Framework.WebHost/KMQAPIService.svc/SaveCustomer', headers=headers,json=mydict(data))
+            url = "http://letsap.dedicated.co.za/Letsap.Framework.WebHost/KMQAPIService.svc/GetTestConnection/"+str(client_handle)
+            conn = requests.get(url)
+            if conn.status_code == 200:
+                 save_customer = requests.post(url='http://letsap.dedicated.co.za/Letsap.Framework.WebHost/KMQAPIService.svc/SaveCustomer', headers=headers,json=mydict(data))
         except Exception,e:
-	    print 'exp==========',e
-	    pass
+            pass
 
         return True
 
@@ -124,297 +125,582 @@ class ResPartner(models.Model):
 			raise UserError(_('Entered reference number already exist.'))
 		
 
+    @api.multi
+    def create_on_pastel(self):
+        if self._context.has_key('default_customer') or self._context.has_key('default_supplier') or self._context.has_key('search_default_customer') or self._context.has_key('search_default_supplier'):
+            group = self.env['res.groups'].search([('name', '=', 'Accounts(Customers) Creation group')])
+            user = self.env['res.users'].browse(self._uid)
+            if user not in group.users:
+                raise UserError(_('Only users from Accounts(Customers) Creation group are allowed to create customer.'))
+
+            salesman_code = False
+            if not self.child_ids and not self.parent_id:
+                raise UserError(_('Please add a contact for the customer.'))
+            if self.user_id:
+                salesman_code = self.user_id.partner_id.ref
+            headers = {"Content-type": "application/json"}
+            conn = requests.post(url='http://letsap.dedicated.co.za/Letsap.Framework.WebHost/KMQAPIService.svc/GetTestConnection', headers=headers)
+            client_data = {"username" : "Daniel"}
+            client_data_resp = requests.post(url='http://letsap.dedicated.co.za/portmapping/CompanyList.asmx/GetCompanyList', headers=headers,  json=client_data)
+            client_data_res = json.loads(client_data_resp.content)
+            for data in client_data_res['d']:
+                if data['Alias'] == 'PASTELCONNECT':
+                    client_handle = data['ClientHandle'] 
+                    continue
+#             client_handle = client_data_res['d'][0]['ClientHandle'] 
+
+            a = datetime.strptime(str(datetime.now().date()), '%Y-%m-%d')
+            a = int(unix_time_millis(a))
+
+            postal_add = delev_add = cell = contact = email = fax = telephone = duv2 = sup2 = ' '
+            zip1 = self.zip or ''
+            fax = self.fax or ''
+            state_name = ''
+            country_name = ''
+            if self.child_ids:
+                for child in self.child_ids:
+                    if child.type == 'invoice':
+                        if child.state_id:
+                            state_name = child.state_id.name
+                        if child.country_id:
+                            country_name = child.country_id.name
+                        postal_street = child.street or ' '
+                        postal_street2 = child.street2 or ' '
+                        postal_city = child.city or ' '
+                        postal_state = state_name or ' '
+                        postal_country = country_name or ' '
+                        postal_zip1 = child.zip or ' '
+
+                        postal_add = postal_street+","+ postal_street2+","+ postal_city+","+ postal_state+","+ postal_country+","+ postal_zip1
+                    if child.type == 'delivery':
+                        if child.state_id:
+                            state_name = child.state_id.name
+                        if child.country_id:
+                            country_name = child.country_id.name
+                        delivery_street = child.street or ' '
+                        delivery_street2 = child.street2 or ' '
+                        delivery_city = child.city or ' '
+                        delivery_state = state_name or ' '
+                        delivery_country = country_name or ' '
+                        delivery_zip1 = child.zip or ' '
+
+                        delev_add = delivery_street+","+ delivery_street2+","+ delivery_city+","+ delivery_state+","+ delivery_country+","+ delivery_zip1
+                    if child.type == 'contact':
+                        cell = child.mobile
+                        contact = child.name
+                        email = child.email
+                        ##fax = val[2]['fax']
+                        telephone = child.phone
+
+            ######
+            if type(postal_add) is unicode:
+                sup2=str(postal_add)
+            if type(postal_add) is tuple:
+                sup = list(postal_add)
+                sup2 = str(sup[0])
+            if type(delev_add) is unicode:
+                duv2 = str(delev_add)
+            if type(delev_add) is tuple:
+                duv = list(delev_add)
+                duv2 = str(duv[0])
+            data = {
+              "clientHandle": str(client_handle),
+              "Customer": {
+                "_blocked": self.account_blocked or False,
+                "_countryCode": None,
+                "_createDate": "/Date("+str(a)+"+0200"+")/",
+                "_creditLimit": self.credit_limit or 0,
+                "_currencyCode": 0,
+                "_currentBalance": 0.00,
+                "_customerBranches": [
+                  {
+                    "_branchID": "00000000-0000-0000-0000-000000000000",
+                    "_branchName": "1",
+                    "_createDate": "/Date("+str(a)+"+0200"+")/",
+                    "_customerContacts": [
+                      {
+                        "_branchID": "00000000-0000-0000-0000-000000000000",
+                    "_cell": cell,#vals.has_key('child_ids') and vals['child_ids'] and vals['child_ids'][0][2].has_key('mobile') and vals['child_ids'][0][2]['mobile'],
+                            "_contact": contact,#vals.has_key('child_ids') and vals['child_ids'] and vals['child_ids'][0][2].has_key('name') and vals['child_ids'][0][2]['name'],
+                            "_contactID": "00000000-0000-0000-0000-000000000000",
+                            "_createDate": "/Date("+str(a)+"+0200"+")/",
+                            "_email": email,#vals.has_key('child_ids') and vals['child_ids'] and vals['child_ids'][0][2].has_key('email') and vals['child_ids'][0][2]['email'],
+                            "_fax": fax,#vals.has_key('child_ids') and vals['child_ids'] and vals['child_ids'][0][2].has_key('fax') and vals['child_ids'][0][2]['fax'],
+                            "_telephone":telephone,# vals.has_key('child_ids') and vals['child_ids'] and vals['child_ids'][0][2].has_key('phone') and vals['child_ids'][0][2]['phone'],
+                        "_updatedOn": "/Date("+str(a)+"+0200"+")/"
+                      }
+                    ],
+                    "_customerDescription": self.name,
+                    "_customerID": "00000000-0000-0000-0000-000000000000",
+                    "_emailAddress": None,
+                    "_partnerContact": None,
+                    "_partnerCustomerCode": self.ref,
+                    "_partnerMobile": None,
+                    "_partnerSalesmanCode": str(salesman_code),
+                    "_partnerTelephone": None,
+                    "_physicalAddress": "1,1,1,1,1",
+                    "_postalAddress": "2,2,2,2,",
+                    "_salesmanID": None,
+                    "_updatedOn": "/Date("+str(a)+"+0200"+")/"
+                  }
+                ],
+                "_customerCategory": None,
+                "_customerCategoryID": "00000000-0000-0000-0000-000000000000",
+                "_customerDescription": self.name,
+                "_customerID": "00000000-0000-0000-0000-000000000000",
+                "_dayBased": False,
+                "_defaultTax": 0,
+                "_discountPercent": 0,
+                "_docPrintorEmail": 1,
+                "_freight": None,
+                "_incExc": False,
+                "_interestAfter": -1,
+                "_lCardNumber": None,
+                "_loyaltyProg": None,
+                "_openItem": True,
+                "_openingBalance": 3470,
+                "_partnerAddress": {
+                  "_branchID": "00000000-0000-0000-0000-000000000000",
+                  "_branchName": None,
+                  "_createDate": "/Date("+str(a)+"+0200"+")/",
+                  "_customerContacts": [
+                    {
+                      "_branchID": "00000000-0000-0000-0000-000000000000",
+                      "_cell": cell,#vals.has_key('child_ids') and vals['child_ids'] and vals['child_ids'][0][2].has_key('mobile') and vals['child_ids'][0][2]['mobile'],
+                      "_contact": contact,#vals.has_key('child_ids') and vals['child_ids'] and vals['child_ids'][0][2].has_key('name') and vals['child_ids'][0][2]['name'],
+                      "_contactID": "00000000-0000-0000-0000-000000000000",
+                      "_createDate": "/Date("+str(a)+"+0200"+")/",
+                      "_email": email,#vals.has_key('child_ids') and vals['child_ids'] and vals['child_ids'][0][2].has_key('email') and vals['child_ids'][0][2]['email'],
+                      "_fax":fax,# vals.has_key('child_ids') and vals['child_ids'] and vals['child_ids'][0][2].has_key('fax') and vals['child_ids'][0][2]['fax'],
+                      "_telephone": telephone,#vals.has_key('child_ids') and vals['child_ids'] and vals['child_ids'][0][2].has_key('phone') and vals['child_ids'][0][2]['phone'],
+                      "_updatedOn": "/Date("+str(a)+"+0200"+")/"
+                    }
+                  ],
+                  "_customerDescription": None,
+                  "_customerID": "00000000-0000-0000-0000-000000000000",
+                  "_emailAddress": None,
+                  "_partnerContact": None,
+                  "_partnerCustomerCode": self.ref,
+                  "_partnerMobile": None,
+                  "_partnerSalesmanCode": str(salesman_code),
+                  "_partnerTelephone": None,
+                  "_physicalAddress": duv2 and duv2 or '',
+                  "_postalAddress": sup2 and sup2 or '',
+                  "_salesmanID": None,
+                  "_updatedOn": "/Date("+str(a)+"+0200"+")/"
+                },
+                "_partnerAgeing": [
+                  0,
+                  "0",
+                  "0",
+                  "0",
+                  "0"
+                ],
+                "_partnerBranches": None,
+                "_partnerCustomerCategory": 0,
+                "_partnerCustomerCode": self.ref or '',
+                "_partnerOverrideTax": 0,
+                "_partnerVatCode": "1234567890",
+                "_paymentTerms": 0,
+                "_priceListID": "00000000-0000-0000-0000-000000000000",
+                "_settlementTerms": False,
+                "_ship": None,
+                "_statPrintorEmail": 1,
+                "_taxReference": self.vat_no,
+                "_taxTypeID": "00000000-0000-0000-0000-000000000000",
+                "_updatedOn": "/Date("+str(a)+"+0200"+")/",
+                "partnerPriceListId": 1,
+                "partnerTaxTypeId": 0
+              }
+            }
+
+            supp_data = {
+            "clientHandle": str(client_handle),
+            "supplier": {
+            "_blocked": self.account_blocked or False,
+            "_countryCode": None,
+            "_createDate": "/Date("+str(a)+"+0200"+")/",
+            "_creditLimit": self.credit_limit or 0.0,
+            "_currencyCode": 0,
+            "_currentBalance": 0.00,
+            "_dayBased": True,
+            "_defaultTax": 0,
+            "_discountPercent": 0,
+            "_docPrintorEmail": 1,
+            "_freight": "",
+            "_incExc": True,
+            "_openItem": True,
+            "_openingBalance": 0,
+            "_partnerAddress": 
+              {
+                "_branchID": "00000000-0000-0000-0000-000000000000",
+                "_branchName": "1",
+                "_createDate": "/Date("+str(a)+"+0200"+")/",
+            "_physicalAddress": str(delev_add),
+                    "_postalAddress": str(postal_add),#
+                "_supplierContact": 
+                  {
+                    "_branchID": "00000000-0000-0000-0000-000000000000",
+                "_cell": cell,#vals.has_key('child_ids') and vals['child_ids'] and vals['child_ids'][0][2].has_key('mobile') and vals['child_ids'][0][2]['mobile'],
+                        "_contact": contact,#vals.has_key('child_ids') and vals['child_ids'] and vals['child_ids'][0][2].has_key('name') and vals['child_ids'][0][2]['name'],
+                        "_contactID": "00000000-0000-0000-0000-000000000000",
+                        "_createDate": "/Date("+str(a)+"+0200"+")/",
+                        "_email": email,#vals.has_key('child_ids') and vals['child_ids'] and vals['child_ids'][0][2].has_key('email') and vals['child_ids'][0][2]['email'],
+                        "_fax": fax,#vals.has_key('child_ids') and vals['child_ids'] and vals['child_ids'][0][2].has_key('fax') and vals['child_ids'][0][2]['fax'],
+                        "_telephone":telephone,# vals.has_key('child_ids') and vals['child_ids'] and vals['child_ids'][0][2].has_key('phone') and vals['child_ids'][0][2]['phone'],
+                    "_updatedOn": "/Date("+str(a)+"+0200"+")/"
+                  }
+                ,
+                "_supplierDescription": self.name,
+                "_supplierID": "00000000-0000-0000-0000-000000000000",
+                "_emailAddress": None,
+                "_partnerContact": None,
+                "_partnerSupplierCode": self.ref,
+                "_partnerMobile": None,
+                "_partnerSalesmanCode": str(salesman_code),
+                "_partnerTelephone": None,
+                "_physicalAddress": str(delev_add),
+                "_postalAddress": str(postal_add),
+                "_salesmanID": None,
+                "_updatedOn": "/Date("+str(a)+"+0200"+")/"
+              }
+            ,
+                "_supplierCategoryID": "00000000-0000-0000-0000-000000000000",
+                "_supplierCode":self.ref,
+            "_supplierDescription": self.name,
+                "_supplierID": "00000000-0000-0000-0000-000000000000",
+            "_paymentTerms": 1,
+            "_settlementTerms": False,
+            "_ship": None,
+            "_statPrintorEmail": 1,
+            "_taxReference": self.vat_no,
+            "_taxTypeID": "00000000-0000-0000-0000-000000000000",
+            "_updatedOn": "/Date("+str(a)+"+0200"+")/",
+            }
+            }
+
+        ######
+            try:
+                url = "http://letsap.dedicated.co.za/Letsap.Framework.WebHost/KMQAPIService.svc/GetTestConnection/"+str(client_handle)
+                conn = requests.get(url)
+                if conn.status_code == 200:
+                    if self.ref and self.company_type == 'company' and self.customer == True:
+                        resp = requests.post(url='http://letsap.dedicated.co.za/Letsap.Framework.WebHost/KMQAPIService.svc/SaveCustomer', headers=headers,json=mydict(data))
+                        resp_partner_create_content = json.loads(resp.content).get('SaveCustomerResult')
+                        if resp.status_code == 200:
+                            self.created_at_pastel = True
+                        else:
+                            self.created_at_pastel = False
+                    elif self.ref and self.company_type == 'company' and self.supplier == True:
+                        resp = requests.post(url='http://letsap.dedicated.co.za/Letsap.Framework.WebHost/KMQAPIService.svc/SaveSupplier', headers=headers,json=mydict(supp_data))
+                        if resp.status_code == 200:
+                            self.created_at_pastel = True
+                        else:
+                            self.created_at_pastel = False
+            except Exception,e:
+                print "Exception is in createeeeeeeee:",e
+        return True
+
     @api.model
     def create(self,vals):
-        #if vals.has_key('parent_id') and vals['parent_id'] == False:
+        if self._context.has_key('default_customer') or self._context.has_key('default_supplier') or self._context.has_key('search_default_customer') or self._context.has_key('search_default_supplier'):
+            group = self.env['res.groups'].search([('name', '=', 'Accounts(Customers) Creation group')])
+            user = self.env['res.users'].browse(self._uid)
+            if user not in group.users:
+                raise UserError(_('Only users from Accounts(Customers) Creation group are allowed to create customer.'))
 
-	if self._context.has_key('default_customer') or self._context.has_key('default_supplier') or self._context.has_key('search_default_customer') or self._context.has_key('search_default_supplier'):
-                group = self.env['res.groups'].search([('name', '=', 'Accounts(Customers) Creation group')])
-                user = self.env['res.users'].browse(self._uid)
-                if user not in group.users:
-                        raise UserError(_('Only users from Accounts(Customers) Creation group are allowed to create customer.'))
+            if not vals.has_key('child_ids') and not vals['parent_id']:
+                raise UserError(_('Please add a contact for the customer.'))
+        return super(ResPartner,self).create(vals)
+#         #if vals.has_key('parent_id') and vals['parent_id'] == False:
 
-       	salesman_code = False
-	if not vals.has_key('child_ids') and not vals['parent_id']:
-		raise UserError(_('Please add a contact for the customer.'))
-	if vals.has_key('user_id') and vals['user_id']:
-		salesman_code = self.env['res.users'].browse(vals['user_id']).partner_id.ref 
-	headers = {"Content-type": "application/json"}
-	conn = requests.post(url='http://letsap.dedicated.co.za/Letsap.Framework.WebHost/KMQAPIService.svc/GetTestConnection', headers=headers)
-        client_data = {"username" : "Daniel"}
-        client_data_resp = requests.post(url='http://letsap.dedicated.co.za/portmapping/CompanyList.asmx/GetCompanyList', headers=headers,  json=client_data)
-        client_data_res = json.loads(client_data_resp.content)
-        client_handle = client_data_res['d'][0]['ClientHandle'] 
-
-	a = datetime.strptime(str(datetime.now().date()), '%Y-%m-%d')
-        a = int(unix_time_millis(a))
-        
-	postal_add = delev_add = cell = contact = email = fax = telephone = duv2 = sup2 = ' '
-        if vals.has_key('zip') and vals['zip']:
-                zip1 = str(vals['zip']) or ''
-	if vals.has_key('child_ids') and vals['child_ids']:
-	    for val in vals['child_ids']:
-	        if val[2]['type']=='invoice':
-		    if val[2].has_key('state_id'):
-			state_name = self.env['res.country.state'].search([('id','=',val[2]['state_id'])]).name
-		    if val[2].has_key('country_id'):
-			country_name = self.env['res.country'].search([('id','=',val[2]['country_id'])]).name
-	            postal_street = val[2]['street']
-        	    postal_street2 = val[2]['street2']
-                    postal_city = val[2]['city']
-	            postal_state = state_name
-        	    postal_country = country_name
-                    postal_zip1 = val[2]['zip']
-
-		    if not postal_street:postal_street = ' '
-                    if not postal_street2:postal_street2 = ' '
-                    if not postal_city:postal_city = ' '
-                    if not postal_zip1:postal_zip1 = ' '
-                    if not postal_state:postal_state = ' '
-                    if not postal_country:postal_country = ' '
-
-		    postal_add = postal_street+","+ postal_street2+","+ postal_city+","+ postal_state+","+ postal_country+","+ postal_zip1
-		    
-                if val[2]['type']=='delivery':
-                    if val[2].has_key('state_id'):
-                        state_name = self.env['res.country.state'].search([('id','=',val[2]['state_id'])]).name
-                    if val[2].has_key('country_id'):
-                        country_name = self.env['res.country'].search([('id','=',val[2]['country_id'])]).name
-                    delivery_street = val[2]['street']
-                    delivery_street2 = val[2]['street2']
-                    delivery_city = val[2]['city']
-                    delivery_state = state_name
-                    delivery_country = country_name
-                    delivery_zip1 = val[2]['zip']
-
-		    if not delivery_street:delivery_street = ' '
-                    if not delivery_street2:delivery_street2 = ' '
-                    if not delivery_city:delivery_city = ' '
-                    if not delivery_zip1:delivery_zip1 = ' '
-                    if not delivery_state:delivery_state = ' '
-                    if not delivery_country:delivery_country = ' '
-
-                    delev_add = delivery_street+","+ delivery_street2+","+ delivery_city+","+ delivery_state+","+ delivery_country+","+ delivery_zip1
-		if val[2]['type']=='contact':
-		    cell = val[2]['mobile']
-		    contact = val[2]['name']
-		    email = val[2]['email']
-		    ##fax = val[2]['fax']
-		    telephone = val[2]['phone']
-                    
-	######
-		if type(postal_add) is unicode:
-			sup2=str(postal_add)
-		if type(postal_add) is tuple:
-	        	sup = list(postal_add)
-		        sup2 = str(sup[0])
-		if type(delev_add) is unicode:
-			duv2 = str(delev_add)
-		if type(delev_add) is tuple:
-        		duv = list(delev_add)
-		        duv2 = str(duv[0])
-	data = {
-	  "clientHandle": str(client_handle),
-	  "Customer": {
-	    "_blocked": vals.has_key('account_blocked') and vals['account_blocked'] or False,
-	    "_countryCode": None,
-	    "_createDate": "/Date("+str(a)+"+0200"+")/",
-	    "_creditLimit": vals['credit_limit'] if vals.has_key('credit_limit') else 0,
-	    "_currencyCode": 0,
-	    "_currentBalance": 0.00,
-	    "_customerBranches": [
-	      {
-	        "_branchID": "00000000-0000-0000-0000-000000000000",
-	        "_branchName": "1",
-	        "_createDate": "/Date("+str(a)+"+0200"+")/",
-	        "_customerContacts": [
-	          {
-	            "_branchID": "00000000-0000-0000-0000-000000000000",
-		    "_cell": cell,#vals.has_key('child_ids') and vals['child_ids'] and vals['child_ids'][0][2].has_key('mobile') and vals['child_ids'][0][2]['mobile'],
-                    "_contact": contact,#vals.has_key('child_ids') and vals['child_ids'] and vals['child_ids'][0][2].has_key('name') and vals['child_ids'][0][2]['name'],
-                    "_contactID": "00000000-0000-0000-0000-000000000000",
-                    "_createDate": "/Date("+str(a)+"+0200"+")/",
-                    "_email": email,#vals.has_key('child_ids') and vals['child_ids'] and vals['child_ids'][0][2].has_key('email') and vals['child_ids'][0][2]['email'],
-                    "_fax": fax,#vals.has_key('child_ids') and vals['child_ids'] and vals['child_ids'][0][2].has_key('fax') and vals['child_ids'][0][2]['fax'],
-                    "_telephone":telephone,# vals.has_key('child_ids') and vals['child_ids'] and vals['child_ids'][0][2].has_key('phone') and vals['child_ids'][0][2]['phone'],
-	            "_updatedOn": "/Date("+str(a)+"+0200"+")/"
-	          }
-	        ],
-	        "_customerDescription": str(vals['name']),
-	        "_customerID": "00000000-0000-0000-0000-000000000000",
-	        "_emailAddress": None,
-	        "_partnerContact": None,
-	        "_partnerCustomerCode": vals.has_key('ref') and str(vals['ref']),
-	        "_partnerMobile": None,
-	        "_partnerSalesmanCode": str(salesman_code),
-	        "_partnerTelephone": None,
-	        "_physicalAddress": "1,1,1,1,1",
-	        "_postalAddress": "2,2,2,2,",
-	        "_salesmanID": None,
-	        "_updatedOn": "/Date("+str(a)+"+0200"+")/"
-	      }
-	    ],
-	    "_customerCategory": None,
-	    "_customerCategoryID": "00000000-0000-0000-0000-000000000000",
-	    "_customerDescription": str(vals['name']),
-	    "_customerID": "00000000-0000-0000-0000-000000000000",
-	    "_dayBased": False,
-	    "_defaultTax": 0,
-	    "_discountPercent": 0,
-	    "_docPrintorEmail": 1,
-	    "_freight": None,
-	    "_incExc": False,
-	    "_interestAfter": -1,
-	    "_lCardNumber": None,
-	    "_loyaltyProg": None,
-	    "_openItem": True,
-	    "_openingBalance": 3470,
-	    "_partnerAddress": {
-	      "_branchID": "00000000-0000-0000-0000-000000000000",
-	      "_branchName": None,
-	      "_createDate": "/Date("+str(a)+"+0200"+")/",
-	      "_customerContacts": [
-	        {
-	          "_branchID": "00000000-0000-0000-0000-000000000000",
-	          "_cell": cell,#vals.has_key('child_ids') and vals['child_ids'] and vals['child_ids'][0][2].has_key('mobile') and vals['child_ids'][0][2]['mobile'],
-	          "_contact": contact,#vals.has_key('child_ids') and vals['child_ids'] and vals['child_ids'][0][2].has_key('name') and vals['child_ids'][0][2]['name'],
-	          "_contactID": "00000000-0000-0000-0000-000000000000",
-	          "_createDate": "/Date("+str(a)+"+0200"+")/",
-	          "_email": email,#vals.has_key('child_ids') and vals['child_ids'] and vals['child_ids'][0][2].has_key('email') and vals['child_ids'][0][2]['email'],
-	          "_fax":fax,# vals.has_key('child_ids') and vals['child_ids'] and vals['child_ids'][0][2].has_key('fax') and vals['child_ids'][0][2]['fax'],
-	          "_telephone": telephone,#vals.has_key('child_ids') and vals['child_ids'] and vals['child_ids'][0][2].has_key('phone') and vals['child_ids'][0][2]['phone'],
-	          "_updatedOn": "/Date("+str(a)+"+0200"+")/"
-	        }
-	      ],
-	      "_customerDescription": None,
-	      "_customerID": "00000000-0000-0000-0000-000000000000",
-	      "_emailAddress": None,
-	      "_partnerContact": None,
-	      "_partnerCustomerCode": vals.has_key('ref') and str(vals['ref']),
-	      "_partnerMobile": None,
-	      "_partnerSalesmanCode": str(salesman_code),
-	      "_partnerTelephone": None,
-	      "_physicalAddress": duv2 and duv2 or '',
-	      "_postalAddress": sup2 and sup2 or '',
-	      "_salesmanID": None,
-	      "_updatedOn": "/Date("+str(a)+"+0200"+")/"
-	    },
-	    "_partnerAgeing": [
-	      0,
-	      "0",
-	      "0",
-	      "0",
-	      "0"
-	    ],
-	    "_partnerBranches": None,
-	    "_partnerCustomerCategory": 0,
-	    "_partnerCustomerCode": vals.has_key('ref') and str(vals['ref']) or '',
-	    "_partnerOverrideTax": 0,
-	    "_partnerVatCode": None,
-	    "_paymentTerms": 0,
-	    "_priceListID": "00000000-0000-0000-0000-000000000000",
-	    "_settlementTerms": False,
-	    "_ship": None,
-	    "_statPrintorEmail": 1,
-	    "_taxReference": vals.has_key('vat_no') and str(vals['vat_no']),
-	    "_taxTypeID": "00000000-0000-0000-0000-000000000000",
-	    "_updatedOn": "/Date("+str(a)+"+0200"+")/",
-	    "partnerPriceListId": 1,
-	    "partnerTaxTypeId": 0
-	  }
-	}
-
-        supp_data = {
-	  "clientHandle": str(client_handle),
-	  "supplier": {
-	    "_blocked": vals.has_key('account_blocked') and vals['account_blocked'] or False,
-	    "_countryCode": None,
-	    "_createDate": "/Date("+str(a)+"+0200"+")/",
-	    "_creditLimit": vals.has_key('credit_limit') and vals['credit_limit'] or 0.0,
-	    "_currencyCode": 0,
-	    "_currentBalance": 0.00,
-	    "_dayBased": True,
-	    "_defaultTax": 0,
-	    "_discountPercent": 0,
-	    "_docPrintorEmail": 1,
-	    "_freight": "",
-	    "_incExc": True,
-	    "_openItem": True,
-	    "_openingBalance": 0,
-	    "_partnerAddress": 
-	      {
-	        "_branchID": "00000000-0000-0000-0000-000000000000",
-	        "_branchName": "1",
-	        "_createDate": "/Date("+str(a)+"+0200"+")/",
-		"_physicalAddress": str(delev_add),
-                "_postalAddress": str(postal_add),#
-	        "_supplierContact": 
-	          {
-	            "_branchID": "00000000-0000-0000-0000-000000000000",
-		    "_cell": cell,#vals.has_key('child_ids') and vals['child_ids'] and vals['child_ids'][0][2].has_key('mobile') and vals['child_ids'][0][2]['mobile'],
-                    "_contact": contact,#vals.has_key('child_ids') and vals['child_ids'] and vals['child_ids'][0][2].has_key('name') and vals['child_ids'][0][2]['name'],
-                    "_contactID": "00000000-0000-0000-0000-000000000000",
-                    "_createDate": "/Date("+str(a)+"+0200"+")/",
-                    "_email": email,#vals.has_key('child_ids') and vals['child_ids'] and vals['child_ids'][0][2].has_key('email') and vals['child_ids'][0][2]['email'],
-                    "_fax": fax,#vals.has_key('child_ids') and vals['child_ids'] and vals['child_ids'][0][2].has_key('fax') and vals['child_ids'][0][2]['fax'],
-                    "_telephone":telephone,# vals.has_key('child_ids') and vals['child_ids'] and vals['child_ids'][0][2].has_key('phone') and vals['child_ids'][0][2]['phone'],
-	            "_updatedOn": "/Date("+str(a)+"+0200"+")/"
-	          }
-	        ,
-	        "_supplierDescription": str(vals['name']),
-	        "_supplierID": "00000000-0000-0000-0000-000000000000",
-	        "_emailAddress": None,
-	        "_partnerContact": None,
-	        "_partnerSupplierCode": vals.has_key('ref') and str(vals['ref']),
-	        "_partnerMobile": None,
-	        "_partnerSalesmanCode": str(salesman_code),
-	        "_partnerTelephone": None,
-	        "_physicalAddress": str(delev_add),
-	        "_postalAddress": str(postal_add),
-	        "_salesmanID": None,
-	        "_updatedOn": "/Date("+str(a)+"+0200"+")/"
-	      }
-	    ,
-            "_supplierCategoryID": "00000000-0000-0000-0000-000000000000",
-            "_supplierCode":vals.has_key('ref') and str(vals['ref']),
-	    "_supplierDescription": str(vals['name']),
-            "_supplierID": "00000000-0000-0000-0000-000000000000",
-	    "_paymentTerms": 1,
-	    "_settlementTerms": False,
-	    "_ship": None,
-	    "_statPrintorEmail": 1,
-	    "_taxReference": vals.has_key('vat_no') and str(vals['vat_no']),
-	    "_taxTypeID": "00000000-0000-0000-0000-000000000000",
-	    "_updatedOn": "/Date("+str(a)+"+0200"+")/",
-	  }
-	}
-
-	######
-	try:
-		url = "http://letsap.dedicated.co.za/Letsap.Framework.WebHost/KMQAPIService.svc/GetTestConnection/"+str(client_handle)
-		conn = requests.get(url)
-                if conn.status_code == 200:
-
-		    if (vals.has_key('ref') and vals['ref']) and (vals.has_key('company_type') and vals['company_type'] == 'company') and vals['customer'] == True:
-			resp = requests.post(url='http://letsap.dedicated.co.za/Letsap.Framework.WebHost/KMQAPIService.svc/SaveCustomer', headers=headers,json=mydict(data))
-			#if resp.status_code == "200":
-			if resp.status_code == 200:
-		                vals['created_at_pastel'] = True
-		        else:
-        		        vals['created_at_pastel'] = False
-
-		    elif (vals.has_key('ref') and vals['ref']) and (vals.has_key('company_type') and vals['company_type'] == 'company') and vals['supplier'] == True:
-        	        resp = requests.post(url='http://letsap.dedicated.co.za/Letsap.Framework.WebHost/KMQAPIService.svc/SaveSupplier', headers=headers,json=mydict(supp_data))
-                	#if resp.status_code == "200":
-	                if resp.status_code == 200:
-        	                vals['created_at_pastel'] = True
-	                else:
-        	                vals['created_at_pastel'] = False
-
-
-	except Exception,e:
-		print "Exception is in createeeeeeeee:",e
-	return super(ResPartner,self).create(vals)
+# 	if self._context.has_key('default_customer') or self._context.has_key('default_supplier') or self._context.has_key('search_default_customer') or self._context.has_key('search_default_supplier'):
+#                 group = self.env['res.groups'].search([('name', '=', 'Accounts(Customers) Creation group')])
+#                 user = self.env['res.users'].browse(self._uid)
+#                 if user not in group.users:
+#                         raise UserError(_('Only users from Accounts(Customers) Creation group are allowed to create customer.'))
+# 
+#        	salesman_code = False
+# 	if not vals.has_key('child_ids') and not vals['parent_id']:
+# 		raise UserError(_('Please add a contact for the customer.'))
+# 	if vals.has_key('user_id') and vals['user_id']:
+# 		salesman_code = self.env['res.users'].browse(vals['user_id']).partner_id.ref 
+# 	headers = {"Content-type": "application/json"}
+# 	conn = requests.post(url='http://letsap.dedicated.co.za/Letsap.Framework.WebHost/KMQAPIService.svc/GetTestConnection', headers=headers)
+#         client_data = {"username" : "Daniel"}
+#         client_data_resp = requests.post(url='http://letsap.dedicated.co.za/portmapping/CompanyList.asmx/GetCompanyList', headers=headers,  json=client_data)
+#         client_data_res = json.loads(client_data_resp.content)
+#         client_handle = client_data_res['d'][0]['ClientHandle'] 
+# 
+# 	a = datetime.strptime(str(datetime.now().date()), '%Y-%m-%d')
+#         a = int(unix_time_millis(a))
+#         
+# 	postal_add = delev_add = cell = contact = email = fax = telephone = duv2 = sup2 = ' '
+#         if vals.has_key('zip') and vals['zip']:
+#                 zip1 = str(vals['zip']) or ''
+# 	if vals.has_key('child_ids') and vals['child_ids']:
+# 	    for val in vals['child_ids']:
+# 	        if val[2]['type']=='invoice':
+# 		    if val[2].has_key('state_id'):
+# 			state_name = self.env['res.country.state'].search([('id','=',val[2]['state_id'])]).name
+# 		    if val[2].has_key('country_id'):
+# 			country_name = self.env['res.country'].search([('id','=',val[2]['country_id'])]).name
+# 	            postal_street = val[2]['street']
+#         	    postal_street2 = val[2]['street2']
+#                     postal_city = val[2]['city']
+# 	            postal_state = state_name
+#         	    postal_country = country_name
+#                     postal_zip1 = val[2]['zip']
+# 
+# 		    if not postal_street:postal_street = ' '
+#                     if not postal_street2:postal_street2 = ' '
+#                     if not postal_city:postal_city = ' '
+#                     if not postal_zip1:postal_zip1 = ' '
+#                     if not postal_state:postal_state = ' '
+#                     if not postal_country:postal_country = ' '
+# 
+# 		    postal_add = postal_street+","+ postal_street2+","+ postal_city+","+ postal_state+","+ postal_country+","+ postal_zip1
+# 		    
+#                 if val[2]['type']=='delivery':
+#                     if val[2].has_key('state_id'):
+#                         state_name = self.env['res.country.state'].search([('id','=',val[2]['state_id'])]).name
+#                     if val[2].has_key('country_id'):
+#                         country_name = self.env['res.country'].search([('id','=',val[2]['country_id'])]).name
+#                     delivery_street = val[2]['street']
+#                     delivery_street2 = val[2]['street2']
+#                     delivery_city = val[2]['city']
+#                     delivery_state = state_name
+#                     delivery_country = country_name
+#                     delivery_zip1 = val[2]['zip']
+# 
+# 		    if not delivery_street:delivery_street = ' '
+#                     if not delivery_street2:delivery_street2 = ' '
+#                     if not delivery_city:delivery_city = ' '
+#                     if not delivery_zip1:delivery_zip1 = ' '
+#                     if not delivery_state:delivery_state = ' '
+#                     if not delivery_country:delivery_country = ' '
+# 
+#                     delev_add = delivery_street+","+ delivery_street2+","+ delivery_city+","+ delivery_state+","+ delivery_country+","+ delivery_zip1
+# 		if val[2]['type']=='contact':
+# 		    cell = val[2]['mobile']
+# 		    contact = val[2]['name']
+# 		    email = val[2]['email']
+# 		    ##fax = val[2]['fax']
+# 		    telephone = val[2]['phone']
+#                     
+# 	######
+# 		if type(postal_add) is unicode:
+# 			sup2=str(postal_add)
+# 		if type(postal_add) is tuple:
+# 	        	sup = list(postal_add)
+# 		        sup2 = str(sup[0])
+# 		if type(delev_add) is unicode:
+# 			duv2 = str(delev_add)
+# 		if type(delev_add) is tuple:
+#         		duv = list(delev_add)
+# 		        duv2 = str(duv[0])
+# 	data = {
+# 	  "clientHandle": str(client_handle),
+# 	  "Customer": {
+# 	    "_blocked": vals.has_key('account_blocked') and vals['account_blocked'] or False,
+# 	    "_countryCode": None,
+# 	    "_createDate": "/Date("+str(a)+"+0200"+")/",
+# 	    "_creditLimit": vals['credit_limit'] if vals.has_key('credit_limit') else 0,
+# 	    "_currencyCode": 0,
+# 	    "_currentBalance": 0.00,
+# 	    "_customerBranches": [
+# 	      {
+# 	        "_branchID": "00000000-0000-0000-0000-000000000000",
+# 	        "_branchName": "1",
+# 	        "_createDate": "/Date("+str(a)+"+0200"+")/",
+# 	        "_customerContacts": [
+# 	          {
+# 	            "_branchID": "00000000-0000-0000-0000-000000000000",
+# 		    "_cell": cell,#vals.has_key('child_ids') and vals['child_ids'] and vals['child_ids'][0][2].has_key('mobile') and vals['child_ids'][0][2]['mobile'],
+#                     "_contact": contact,#vals.has_key('child_ids') and vals['child_ids'] and vals['child_ids'][0][2].has_key('name') and vals['child_ids'][0][2]['name'],
+#                     "_contactID": "00000000-0000-0000-0000-000000000000",
+#                     "_createDate": "/Date("+str(a)+"+0200"+")/",
+#                     "_email": email,#vals.has_key('child_ids') and vals['child_ids'] and vals['child_ids'][0][2].has_key('email') and vals['child_ids'][0][2]['email'],
+#                     "_fax": fax,#vals.has_key('child_ids') and vals['child_ids'] and vals['child_ids'][0][2].has_key('fax') and vals['child_ids'][0][2]['fax'],
+#                     "_telephone":telephone,# vals.has_key('child_ids') and vals['child_ids'] and vals['child_ids'][0][2].has_key('phone') and vals['child_ids'][0][2]['phone'],
+# 	            "_updatedOn": "/Date("+str(a)+"+0200"+")/"
+# 	          }
+# 	        ],
+# 	        "_customerDescription": str(vals['name']),
+# 	        "_customerID": "00000000-0000-0000-0000-000000000000",
+# 	        "_emailAddress": None,
+# 	        "_partnerContact": None,
+# 	        "_partnerCustomerCode": vals.has_key('ref') and str(vals['ref']),
+# 	        "_partnerMobile": None,
+# 	        "_partnerSalesmanCode": str(salesman_code),
+# 	        "_partnerTelephone": None,
+# 	        "_physicalAddress": "1,1,1,1,1",
+# 	        "_postalAddress": "2,2,2,2,",
+# 	        "_salesmanID": None,
+# 	        "_updatedOn": "/Date("+str(a)+"+0200"+")/"
+# 	      }
+# 	    ],
+# 	    "_customerCategory": None,
+# 	    "_customerCategoryID": "00000000-0000-0000-0000-000000000000",
+# 	    "_customerDescription": str(vals['name']),
+# 	    "_customerID": "00000000-0000-0000-0000-000000000000",
+# 	    "_dayBased": False,
+# 	    "_defaultTax": 0,
+# 	    "_discountPercent": 0,
+# 	    "_docPrintorEmail": 1,
+# 	    "_freight": None,
+# 	    "_incExc": False,
+# 	    "_interestAfter": -1,
+# 	    "_lCardNumber": None,
+# 	    "_loyaltyProg": None,
+# 	    "_openItem": True,
+# 	    "_openingBalance": 3470,
+# 	    "_partnerAddress": {
+# 	      "_branchID": "00000000-0000-0000-0000-000000000000",
+# 	      "_branchName": None,
+# 	      "_createDate": "/Date("+str(a)+"+0200"+")/",
+# 	      "_customerContacts": [
+# 	        {
+# 	          "_branchID": "00000000-0000-0000-0000-000000000000",
+# 	          "_cell": cell,#vals.has_key('child_ids') and vals['child_ids'] and vals['child_ids'][0][2].has_key('mobile') and vals['child_ids'][0][2]['mobile'],
+# 	          "_contact": contact,#vals.has_key('child_ids') and vals['child_ids'] and vals['child_ids'][0][2].has_key('name') and vals['child_ids'][0][2]['name'],
+# 	          "_contactID": "00000000-0000-0000-0000-000000000000",
+# 	          "_createDate": "/Date("+str(a)+"+0200"+")/",
+# 	          "_email": email,#vals.has_key('child_ids') and vals['child_ids'] and vals['child_ids'][0][2].has_key('email') and vals['child_ids'][0][2]['email'],
+# 	          "_fax":fax,# vals.has_key('child_ids') and vals['child_ids'] and vals['child_ids'][0][2].has_key('fax') and vals['child_ids'][0][2]['fax'],
+# 	          "_telephone": telephone,#vals.has_key('child_ids') and vals['child_ids'] and vals['child_ids'][0][2].has_key('phone') and vals['child_ids'][0][2]['phone'],
+# 	          "_updatedOn": "/Date("+str(a)+"+0200"+")/"
+# 	        }
+# 	      ],
+# 	      "_customerDescription": None,
+# 	      "_customerID": "00000000-0000-0000-0000-000000000000",
+# 	      "_emailAddress": None,
+# 	      "_partnerContact": None,
+# 	      "_partnerCustomerCode": vals.has_key('ref') and str(vals['ref']),
+# 	      "_partnerMobile": None,
+# 	      "_partnerSalesmanCode": str(salesman_code),
+# 	      "_partnerTelephone": None,
+# 	      "_physicalAddress": duv2 and duv2 or '',
+# 	      "_postalAddress": sup2 and sup2 or '',
+# 	      "_salesmanID": None,
+# 	      "_updatedOn": "/Date("+str(a)+"+0200"+")/"
+# 	    },
+# 	    "_partnerAgeing": [
+# 	      0,
+# 	      "0",
+# 	      "0",
+# 	      "0",
+# 	      "0"
+# 	    ],
+# 	    "_partnerBranches": None,
+# 	    "_partnerCustomerCategory": 0,
+# 	    "_partnerCustomerCode": vals.has_key('ref') and str(vals['ref']) or '',
+# 	    "_partnerOverrideTax": 0,
+# 	    "_partnerVatCode": None,
+# 	    "_paymentTerms": 0,
+# 	    "_priceListID": "00000000-0000-0000-0000-000000000000",
+# 	    "_settlementTerms": False,
+# 	    "_ship": None,
+# 	    "_statPrintorEmail": 1,
+# 	    "_taxReference": vals.has_key('vat_no') and str(vals['vat_no']),
+# 	    "_taxTypeID": "00000000-0000-0000-0000-000000000000",
+# 	    "_updatedOn": "/Date("+str(a)+"+0200"+")/",
+# 	    "partnerPriceListId": 1,
+# 	    "partnerTaxTypeId": 0
+# 	  }
+# 	}
+# 
+#         supp_data = {
+# 	  "clientHandle": str(client_handle),
+# 	  "supplier": {
+# 	    "_blocked": vals.has_key('account_blocked') and vals['account_blocked'] or False,
+# 	    "_countryCode": None,
+# 	    "_createDate": "/Date("+str(a)+"+0200"+")/",
+# 	    "_creditLimit": vals.has_key('credit_limit') and vals['credit_limit'] or 0.0,
+# 	    "_currencyCode": 0,
+# 	    "_currentBalance": 0.00,
+# 	    "_dayBased": True,
+# 	    "_defaultTax": 0,
+# 	    "_discountPercent": 0,
+# 	    "_docPrintorEmail": 1,
+# 	    "_freight": "",
+# 	    "_incExc": True,
+# 	    "_openItem": True,
+# 	    "_openingBalance": 0,
+# 	    "_partnerAddress": 
+# 	      {
+# 	        "_branchID": "00000000-0000-0000-0000-000000000000",
+# 	        "_branchName": "1",
+# 	        "_createDate": "/Date("+str(a)+"+0200"+")/",
+# 		"_physicalAddress": str(delev_add),
+#                 "_postalAddress": str(postal_add),#
+# 	        "_supplierContact": 
+# 	          {
+# 	            "_branchID": "00000000-0000-0000-0000-000000000000",
+# 		    "_cell": cell,#vals.has_key('child_ids') and vals['child_ids'] and vals['child_ids'][0][2].has_key('mobile') and vals['child_ids'][0][2]['mobile'],
+#                     "_contact": contact,#vals.has_key('child_ids') and vals['child_ids'] and vals['child_ids'][0][2].has_key('name') and vals['child_ids'][0][2]['name'],
+#                     "_contactID": "00000000-0000-0000-0000-000000000000",
+#                     "_createDate": "/Date("+str(a)+"+0200"+")/",
+#                     "_email": email,#vals.has_key('child_ids') and vals['child_ids'] and vals['child_ids'][0][2].has_key('email') and vals['child_ids'][0][2]['email'],
+#                     "_fax": fax,#vals.has_key('child_ids') and vals['child_ids'] and vals['child_ids'][0][2].has_key('fax') and vals['child_ids'][0][2]['fax'],
+#                     "_telephone":telephone,# vals.has_key('child_ids') and vals['child_ids'] and vals['child_ids'][0][2].has_key('phone') and vals['child_ids'][0][2]['phone'],
+# 	            "_updatedOn": "/Date("+str(a)+"+0200"+")/"
+# 	          }
+# 	        ,
+# 	        "_supplierDescription": str(vals['name']),
+# 	        "_supplierID": "00000000-0000-0000-0000-000000000000",
+# 	        "_emailAddress": None,
+# 	        "_partnerContact": None,
+# 	        "_partnerSupplierCode": vals.has_key('ref') and str(vals['ref']),
+# 	        "_partnerMobile": None,
+# 	        "_partnerSalesmanCode": str(salesman_code),
+# 	        "_partnerTelephone": None,
+# 	        "_physicalAddress": str(delev_add),
+# 	        "_postalAddress": str(postal_add),
+# 	        "_salesmanID": None,
+# 	        "_updatedOn": "/Date("+str(a)+"+0200"+")/"
+# 	      }
+# 	    ,
+#             "_supplierCategoryID": "00000000-0000-0000-0000-000000000000",
+#             "_supplierCode":vals.has_key('ref') and str(vals['ref']),
+# 	    "_supplierDescription": str(vals['name']),
+#             "_supplierID": "00000000-0000-0000-0000-000000000000",
+# 	    "_paymentTerms": 1,
+# 	    "_settlementTerms": False,
+# 	    "_ship": None,
+# 	    "_statPrintorEmail": 1,
+# 	    "_taxReference": vals.has_key('vat_no') and str(vals['vat_no']),
+# 	    "_taxTypeID": "00000000-0000-0000-0000-000000000000",
+# 	    "_updatedOn": "/Date("+str(a)+"+0200"+")/",
+# 	  }
+# 	}
+# 
+# 	######
+# 	try:
+# 		url = "http://letsap.dedicated.co.za/Letsap.Framework.WebHost/KMQAPIService.svc/GetTestConnection/"+str(client_handle)
+# 		conn = requests.get(url)
+#                 if conn.status_code == 200:
+# 
+# 		    if (vals.has_key('ref') and vals['ref']) and (vals.has_key('company_type') and vals['company_type'] == 'company') and vals['customer'] == True:
+# 			resp = requests.post(url='http://letsap.dedicated.co.za/Letsap.Framework.WebHost/KMQAPIService.svc/SaveCustomer', headers=headers,json=mydict(data))
+# 			#if resp.status_code == "200":
+# 			if resp.status_code == 200:
+# 		                vals['created_at_pastel'] = True
+# 		        else:
+#         		        vals['created_at_pastel'] = False
+# 
+# 		    elif (vals.has_key('ref') and vals['ref']) and (vals.has_key('company_type') and vals['company_type'] == 'company') and vals['supplier'] == True:
+#         	        resp = requests.post(url='http://letsap.dedicated.co.za/Letsap.Framework.WebHost/KMQAPIService.svc/SaveSupplier', headers=headers,json=mydict(supp_data))
+#                 	#if resp.status_code == "200":
+# 	                if resp.status_code == 200:
+#         	                vals['created_at_pastel'] = True
+# 	                else:
+#         	                vals['created_at_pastel'] = False
+# 
+# 
+# 	except Exception,e:
+# 		print "Exception is in createeeeeeeee:",e
+# 	return super(ResPartner,self).create(vals)
 
     @api.multi
     def write(self,vals): 
@@ -713,7 +999,7 @@ class ResPartner(models.Model):
 	    "_partnerCustomerCategory": 0,
 	    "_partnerCustomerCode": self.ref,
 	    "_partnerOverrideTax": 0,
-	    "_partnerVatCode": None,
+	    "_partnerVatCode": "1234567890",
 	    "_paymentTerms": 0,
 	    "_priceListID": "00000000-0000-0000-0000-000000000000",
 	    "_settlementTerms": False,

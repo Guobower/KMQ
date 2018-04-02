@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+
+    <record id="inventory_check_wizard_view_form_kt_kmq" model="ir.ui.view">
+        <field name="name">inventory.check.wizard.form</field>
+        <field name="model">inventory.check.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Confirm Quote">
+                <group>
+                    <field name="msg" nolabel="1"/>
+                    <field name="sale_id" invisible="1"/>
+                </group>
+                <footer>
+                    <button name="check_and_confirm" string="Confirm" type="object" class="btn btn-sm btn-primary"/>
+                    <button string="Cancel" class="btn btn-sm btn-default" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_inventory_check_wizard" model="ir.actions.act_window">
+        <field name="name">Confirm Quote</field>
+        <field name="type">ir.actions.act_window</field>
+        <field name="res_model">inventory.check.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="view_id" ref="inventory_check_wizard_view_form_kt_kmq"/>
+        <field name="target">new</field>
+    </record>
+
+</odoo>

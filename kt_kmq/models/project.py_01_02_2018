@@ -208,12 +208,11 @@ class Project(models.Model):
             return new_id
 
     def write(self, values):
-#        approval_stage_id = self.env['project.stages'].search([('name','=','Artwork Design & Approval')])
+        approval_stage_id = self.env['project.stages'].search([('name','=','Artwork Design & Approval')])
         res = super(Project,self).write(values)
         mobile = self.partner_id.mobile
         if values.has_key('stage_id'):
-            stage = self.env['project.stages'].browse(values['stage_id'])
-            stage_name = stage.name
+            stage_name = self.env['project.stages'].browse(values['stage_id']).name
             email_to = self.user_id and self.user_id.partner_id.email or ''
             body_html = ("""Dear %s ,<br/><br/>This is an email to notify you that the Project %s has been moved to stage %s.<br/><br/>Kind Regards<br/>""")% (self.user_id.name,self.name,stage_name)
             #Jagadeesh edn
@@ -226,14 +225,14 @@ class Project(models.Model):
                     }
             res2 = self.env['mail.mail'].sudo().create(mail_vals)
 
-            if stage.send_customer_sms and not mobile:
-                raise UserError('Please capture mobile number for partner to send SMS.')
-#         if values.has_key('stage_id') and values['stage_id'] == approval_stage_id.id:
-            if stage.send_customer_comm and stage.comm_template:
-                template_obj = stage.comm_template
+        if not mobile:
+            raise UserError('Please capture mobile number for partner to send SMS.')
+        if values.has_key('stage_id') and values['stage_id'] == approval_stage_id.id:
+            template_obj = approval_stage_id.comm_template
+            if approval_stage_id.send_customer_comm:
                 template_obj.send_mail(self.id) 
-            if stage.send_customer_sms:
-                sms_template_id = stage.sms_template
+            if approval_stage_id.send_customer_sms:
+                sms_template_id = approval_stage_id.sms_template
                 if sms_template_id:
                     gateway = self.env['sms.smsclient'].search([])
                     body = self.env['mail.template'].render_template(sms_template_id.body_html,'project.project',self.id)
@@ -267,7 +266,7 @@ class Project(models.Model):
                                     }
                                 queue_obj.sudo().create(values)
                 self.message_post(body=(str(html2text.html2text(sms_template_id.body_html))), context=None)
-        return res
+            return res
 
     def show_invoice(self):
         action = self.env.ref('account.action_invoice_refund_out_tree')

@@ -1,260 +1,309 @@
 <odoo>
-	<data>
-		<record id="branding_method_form" model="ir.ui.view">
-			<field name="model">branding.method</field>
-			<field name="arch" type="xml">
-				<form>
-					<sheet>
-						<group>
-							<field name="name" required="1"/>
-							<field name="active"/>
-						</group>
-					</sheet>
-				</form>
-			</field>
-		</record>
+    <data>
+        <record id="branding_method_form" model="ir.ui.view">
+            <field name="model">branding.method</field>
+            <field name="arch" type="xml">
+                <form>
+                    <sheet>
+                        <group>
+                            <group>
+                                <field name="name" required="1" />
+                                <field name="active" />
+                            </group>
+                            <group>
+                                <field name="product_product_id"/>
+                            </group>
+                        </group>
+                    </sheet>
+                </form>
+            </field>
+        </record>
 
-		<record id="branding_method_tree" model="ir.ui.view">
-                        <field name="model">branding.method</field>
-                        <field name="arch" type="xml">
-                                <tree>
-                                	<field name="name" required="1"/>
-                                        <field name="active"/>
-                                </tree>
-                        </field>
-                </record>
+        <record id="branding_method_tree" model="ir.ui.view">
+            <field name="model">branding.method</field>
+            <field name="arch" type="xml">
+                <tree>
+                    <field name="name" required="1" />
+                    <field name="active" />
+                </tree>
+            </field>
+        </record>
 
-		<record id="branding_method_action" model="ir.actions.act_window">
-			<field name="name">Branding Method</field>
-			<field name="res_model">branding.method</field>
-			<field name="view_type">form</field>
-			<field name="view_mode">tree,form</field>
-		</record>
+        <record id="branding_method_action" model="ir.actions.act_window">
+            <field name="name">Branding Method</field>
+            <field name="res_model">branding.method</field>
+            <field name="view_type">form</field>
+            <field name="view_mode">tree,form</field>
+        </record>
 
-		<record id="product_template_only_form_view_inh" model="ir.ui.view">
-	            <field name="name">product.template.product.form</field>
-	            <field name="model">product.template</field>
-	            <field name="inherit_id" ref="product.product_template_only_form_view"/>
-	            <field name="arch" type="xml">
+        <record id="product_template_only_form_view_inh" model="ir.ui.view">
+            <field name="name">product.template.product.form</field>
+            <field name="model">product.template</field>
+            <field name="inherit_id" ref="product.product_template_only_form_view" />
+            <field name="arch" type="xml">
 
-			<xpath expr="//div[@name='button_box']" position="inside">
-	                   <button class="oe_stat_button" name="open_quatation_form" icon="fa-truck" string="Online Quotation" type="object"/>
-	                </xpath>
+                <xpath expr="//div[@name='button_box']" position="inside">
+                    <button class="oe_stat_button" name="open_quatation_form"
+                        icon="fa-truck" string="Online Quotation" type="object" />
+                </xpath>
 
-			<field name="default_code" position="after">
-				
-				<field name="branding_methods" widget="many2many_tags"/>
-				<field name="branding_locations" widget="many2many_tags"/>
-				<field name="color_variants" widget="many2many_tags"/>
-                                <field name="size_variants" widget="many2many_tags"/>
-			</field>
-		    </field>
-		</record>
+                <!-- <field name="default_code" position="after"> -->
 
-		<record id="product_normal_form_view_inh" model="ir.ui.view">
-                    <field name="name">product.product.form</field>
-                    <field name="model">product.product</field>
-                    <field name="inherit_id" ref="product.product_normal_form_view"/>
-                    <field name="arch" type="xml">
+                <!-- <field name="branding_methods" widget="many2many_tags"/> -->
+                <!-- <field name="branding_locations" widget="many2many_tags"/> -->
+                <!-- <field name="color_variants" widget="many2many_tags"/> -->
+                <!-- <field name="size_variants" widget="many2many_tags"/> -->
+                <!-- </field> -->
+                <xpath expr="//notebook/page[3]" position="after">
+                    <page name='branding_pricing' string='branding Pricing'>
+                        <field name='branding_pricing' />
+                    </page>
+                </xpath>
+            </field>
+        </record>
 
-                        <field name="default_code" position="after">
-                                <field name="created_at_pastel"/>
-                        </field>
-                    </field>
-                </record>
+        <record id="product_normal_form_view_inh" model="ir.ui.view">
+            <field name="name">product.product.form</field>
+            <field name="model">product.product</field>
+            <field name="inherit_id" ref="product.product_normal_form_view" />
+            <field name="arch" type="xml">
 
-
-		<record id="branding_location_form" model="ir.ui.view">
-                        <field name="model">branding.location</field>
-                        <field name="arch" type="xml">
-                                <form>
-                                        <sheet>
-                                                <group>
-                                                        <field name="name" required="1"/>
-                                                        <field name="active"/>
-                                                </group>
-                                        </sheet>
-                                </form>
-                        </field>
-                </record>
-
-                <record id="branding_location_tree" model="ir.ui.view">
-                        <field name="model">branding.location</field>
-                        <field name="arch" type="xml">
-                                <tree>
-                                        <field name="name" required="1"/>
-                                        <field name="active"/>
-                                </tree>
-                        </field>
-                </record>
-
-		<record id="branding_lines_form" model="ir.ui.view">
-                        <field name="model">product.branding.lines</field>
-                        <field name="arch" type="xml">
-                                <form>
-                                        <sheet>
-                                                <group>
-                                                        <field name="product_id"/><!-- Jagadeesh -->
-	                                                <field name="branding_location"/>
-        	                                        <field name="branding_method"/>
-                	                                <field name="branding_method_name"/>
-                        	                        <field name="color_variant" attrs="{'readonly':[('branding_method_name','in',['Heat Press','Sublimation','Stickers','Doming'])],'required':[('branding_method_name','in',['Pad Print','Screen Print'])]}"/>
-                                	                <field name="size_variant" attrs="{'readonly':[('branding_method_name','in',['Pad Print','Screen Print'])],'required':[('branding_method_name','in',['Heat Press','Sublimation','Stickers','Doming'])]}"/>
-                                        	        <field name="setup_cost"/>
-                                                	<field name="item_cost"/>
-	                                                <field name="total_cost"/>
-
-                                                </group>
-                                        </sheet>
-                                </form>
-                        </field>
-                </record>
-
-                <record id="branding_lines_tree" model="ir.ui.view">
-                        <field name="model">product.branding.lines</field>
-                        <field name="arch" type="xml">
-                                <tree>
-                                        <field name="product_id"/><!-- Jagadeesh -->
-                                        <field name="branding_location"/>
-                                        <field name="branding_method"/>
-                                        <field name="branding_method_name"/>
-                                        <field name="color_variant" attrs="{'readonly':[('branding_method_name','in',['Heat Press','Sublimation','Stickers','Doming'])],'required':[('branding_method_name','in',['Pad Print','Screen Print'])]}"/>
-                                        <field name="size_variant" attrs="{'readonly':[('branding_method_name','in',['Pad Print','Screen Print'])],'required':[('branding_method_name','in',['Heat Press','Sublimation','Stickers','Doming'])]}"/>
-                                        <field name="setup_cost"/>
-                                        <field name="item_cost"/>
-                                        <field name="total_cost"/>
-
-                                </tree>
-                        </field>
-                </record>
+                <field name="hs_code" position="after">
+                    <field name="created_at_pastel" />
+                    <field name="page_number" />
+                    <field name="size" />
+                    <field name="box_size" />
+                    <field name="qty_per_box" />
+                    <field name="weight_per_box" />
+                </field>
+                <xpath expr="//notebook/page[3]" position="after">
+                    <page name='branding_pricing' string='branding Pricing'>
+                        <field name='branding_pricing' readonly='1' />
+                    </page>
+                </xpath>
+            </field>
+        </record>
 
 
-                <record id="branding_location_action" model="ir.actions.act_window">
-                        <field name="name">Branding Location</field>
-                        <field name="res_model">branding.location</field>
-                        <field name="view_type">form</field>
-                        <field name="view_mode">tree,form</field>
-                </record>
+        <record id="branding_location_form" model="ir.ui.view">
+            <field name="model">branding.location</field>
+            <field name="arch" type="xml">
+                <form>
+                    <sheet>
+                        <group>
+                            <field name="name" required="1" />
+                            <field name="active" />
+                        </group>
+                    </sheet>
+                </form>
+            </field>
+        </record>
 
-	<record id="branding_price_form" model="ir.ui.view">
-                        <field name="model">branding.price</field>
-                        <field name="arch" type="xml">
-                                <form>
-                                        <sheet>
-                                                <group>
-                                                        <field name="product_id" required="1"/>
-                                                        <field name="branding_method" required="1"/>
-							<field name="branding_location" required="1"/>
-                                                        <field name="color_variant" required="1"/>
-							<field name="size_variant" required="1"/>
-                                                        <field name="min_qty" required="1"/>
-							<field name="max_qty" required="1"/>
-                                                        <field name="setup_cost" required="1"/>
-							<field name="item_cost" required="1"/>
+        <record id="branding_location_tree" model="ir.ui.view">
+            <field name="model">branding.location</field>
+            <field name="arch" type="xml">
+                <tree>
+                    <field name="name" required="1" />
+                    <field name="active" />
+                </tree>
+            </field>
+        </record>
 
-                                                </group>
-                                        </sheet>
-                                </form>
-                        </field>
-                </record>
+        <record id="branding_lines_form" model="ir.ui.view">
+            <field name="model">product.branding.lines</field>
+            <field name="arch" type="xml">
+                <form>
+                    <sheet>
+                        <group>
+                            <field name="product_id" /><!-- Jagadeesh -->
+                            <field name="branding_location" />
+                            <field name="branding_method" />
+                            <field name="branding_method_name" />
+                            <field name="color_variant"
+                                attrs="{'readonly':[('branding_method_name','in',['Heat Press1','Sublimation1','Stickers1','Doming1'])],'required':[('branding_method_name','in',['Pad Print','Screen Print'])]}" />
+                            <field name="size_variant"
+                                attrs="{'readonly':[('branding_method_name','in',['Pad Print','Screen Print'])],'required':[('branding_method_name','in',['Heat Press','Sublimation','Stickers','Doming'])]}" />
+                            <field name="setup_cost" />
+                            <field name="item_cost" />
+                            <field name="total_cost" />
 
-                <record id="branding_price_tree" model="ir.ui.view">
-                        <field name="model">branding.price</field>
-                        <field name="arch" type="xml">
-                                <tree>
-					<field name="product_id"/>
-                                        <field name="branding_method"/>
-                                        <field name="branding_location"/>
-                                        <field name="color_variant"/>
-                                        <field name="size_variant"/>
-                                        <field name="min_qty"/>
-                                        <field name="max_qty"/>
-                                        <field name="setup_cost"/>
-					<field name="item_cost"/><!-- Jagadeesh -->
+                        </group>
+                    </sheet>
+                </form>
+            </field>
+        </record>
 
-                                </tree>
-                        </field>
-                </record>
+        <record id="branding_lines_tree" model="ir.ui.view">
+            <field name="model">product.branding.lines</field>
+            <field name="arch" type="xml">
+                <tree>
+                    <field name="product_id" /><!-- Jagadeesh -->
+                    <field name="branding_location" />
+                    <field name="branding_method" />
+                    <field name="branding_method_name" />
+                    <field name="color_variant"
+                        attrs="{'readonly':[('branding_method_name','in',['Heat Press2','Sublimation2','Stickers2','Doming2'])],'required':[('branding_method_name','in',['Pad Print','Screen Print'])]}" />
+                    <field name="size_variant"
+                        attrs="{'readonly':[('branding_method_name','in',['Pad Print','Screen Print'])],'required':[('branding_method_name','in',['Heat Press','Sublimation','Stickers','Doming'])]}" />
+                    <field name="setup_cost" />
+                    <field name="item_cost" />
+                    <field name="total_cost" />
 
-                <record id="branding_price_action" model="ir.actions.act_window">
-                        <field name="name">Branding Price</field>
-                        <field name="res_model">branding.price</field>
-                        <field name="view_type">form</field>
-                        <field name="view_mode">tree,form</field>
-                </record>
-
-		<record id="color_variants_form" model="ir.ui.view">
-                        <field name="model">color.variants</field>
-                        <field name="arch" type="xml">
-                                <form>
-                                        <sheet>
-                                                <group>
-                                                        <field name="name" required="1"/>
-                                                </group>
-                                        </sheet>
-                                </form>
-                        </field>
-                </record>
-
-                <record id="color_variants_tree" model="ir.ui.view">
-                        <field name="model">color.variants</field>
-                        <field name="arch" type="xml">
-                                <tree>
-                                        <field name="name" required="1"/>
-                                </tree>
-                        </field>
-                </record>
-
-                <record id="color_variants_action" model="ir.actions.act_window">
-                        <field name="name">Colors</field>
-                        <field name="res_model">color.variants</field>
-                        <field name="view_type">form</field>
-                        <field name="view_mode">tree,form</field>
-                </record>
-
-		<record id="size_variants_form" model="ir.ui.view">
-                        <field name="model">size.variants</field>
-                        <field name="arch" type="xml">
-                                <form>
-                                        <sheet>
-                                                <group>
-                                                        <field name="name" required="1"/>
-                                                </group>
-                                        </sheet>
-                                </form>
-                        </field>
-                </record>
-
-                <record id="size_variants_tree" model="ir.ui.view">
-                        <field name="model">size.variants</field>
-                        <field name="arch" type="xml">
-                                <tree>
-                                        <field name="name" required="1"/>
-                                </tree>
-                        </field>
-                </record>
-
-                <record id="size_variants_action" model="ir.actions.act_window">
-                        <field name="name">Sizes</field>
-                        <field name="res_model">size.variants</field>
-                        <field name="view_type">form</field>
-                        <field name="view_mode">tree,form</field>
-                </record>
+                </tree>
+            </field>
+        </record>
 
 
+        <record id="branding_location_action" model="ir.actions.act_window">
+            <field name="name">Branding Location</field>
+            <field name="res_model">branding.location</field>
+            <field name="view_type">form</field>
+            <field name="view_mode">tree,form</field>
+        </record>
 
-		<menuitem id="product_branding_menu" parent="sales_team.menu_sale_config" name="Branding" sequence="8" groups="sales_team.group_sale_manager"/>
-		
-		<menuitem id="branding_method_menu" name="Branding Method" action="branding_method_action" parent="product_branding_menu" sequence="0"/>
+        <record id="branding_price_form" model="ir.ui.view">
+            <field name="model">branding.price</field>
+            <field name="arch" type="xml">
+                <form>
+                    <sheet>
+                        <group>
+                            <field name="product_id" required="1" />
+                            <field name="branding_method"
+                                required="1" />
+                            <field name="branding_location"
+                                required="1" />
+                            <field name="branding_method_name"
+                                invisible="1" />
+                            <field name="color_variant"
+                                attrs="{'readonly':[('branding_method_name','in',['Heat Press','Sublimation','Stickers','Doming'])],'required':[('branding_method_name','in',['Pad Print','Screen Print'])]}"
+                                options="{'no_create_edit':True,'no_open':True,'no_quick_create':True}" />
+                            <field name="size_variant"
+                                attrs="{'readonly':[('branding_method_name','in',['Pad Print','Screen Print'])],'required':[('branding_method_name','in',['Heat Press','Sublimation','Stickers','Doming'])]}"
+                                options="{'no_create_edit':True,'no_open':True,'no_quick_create':True}" />
+                            <field name="min_qty" required="1" />
+                            <field name="max_qty" required="1" />
+                            <field name="setup_cost" required="1" />
+                            <field name="rerun_setup_cost" />
+                            <field name="item_cost" required="1" />
+                        </group>
+                    </sheet>
+                </form>
+            </field>
+        </record>
 
-		<menuitem id="branding_location_menu" name="Branding Location" action="branding_location_action" parent="product_branding_menu" sequence="1"/>
+        <record id="branding_price_tree" model="ir.ui.view">
+            <field name="model">branding.price</field>
+            <field name="arch" type="xml">
+                <tree>
+                    <field name="product_id" />
+                    <field name="branding_method" />
+                    <field name="branding_location" />
+                    <field name="branding_method_name" invisible="1" />
+                    <field name="color_variant"
+                        attrs="{'readonly':[('branding_method_name','in',['Heat Press','Sublimation','Stickers','Doming'])],'required':[('branding_method_name','in',['Pad Print','Screen Print'])]}"
+                        options="{'no_create_edit':True,'no_open':True,'no_quick_create':True}" />
+                    <field name="size_variant"
+                        attrs="{'readonly':[('branding_method_name','in',['Pad Print','Screen Print'])],'required':[('branding_method_name','in',['Heat Press','Sublimation','Stickers','Doming'])]}"
+                        options="{'no_create_edit':True,'no_open':True,'no_quick_create':True}" />
+                    <field name="min_qty" />
+                    <field name="max_qty" />
+                    <field name="setup_cost" />
+                    <field name="rerun_setup_cost" />
+                    <field name="item_cost" /><!-- Jagadeesh -->
+                </tree>
+            </field>
+        </record>
+
+        <record id="branding_price_action" model="ir.actions.act_window">
+            <field name="name">Branding Price</field>
+            <field name="res_model">branding.price</field>
+            <field name="view_type">form</field>
+            <field name="view_mode">tree,form</field>
+        </record>
+
+        <record id="color_variants_form" model="ir.ui.view">
+            <field name="model">color.variants</field>
+            <field name="arch" type="xml">
+                <form>
+                    <sheet>
+                        <group>
+                            <field name="name" required="1" />
+                        </group>
+                    </sheet>
+                </form>
+            </field>
+        </record>
+
+        <record id="color_variants_tree" model="ir.ui.view">
+            <field name="model">color.variants</field>
+            <field name="arch" type="xml">
+                <tree>
+                    <field name="name" required="1" />
+                </tree>
+            </field>
+        </record>
+
+        <record id="color_variants_action" model="ir.actions.act_window">
+            <field name="name">Colors</field>
+            <field name="res_model">color.variants</field>
+            <field name="view_type">form</field>
+            <field name="view_mode">tree,form</field>
+        </record>
+
+        <record id="size_variants_form" model="ir.ui.view">
+            <field name="model">size.variants</field>
+            <field name="arch" type="xml">
+                <form>
+                    <sheet>
+                        <group>
+                            <field name="name" required="1" />
+                        </group>
+                    </sheet>
+                </form>
+            </field>
+        </record>
+
+        <record id="size_variants_tree" model="ir.ui.view">
+            <field name="model">size.variants</field>
+            <field name="arch" type="xml">
+                <tree>
+                    <field name="name" required="1" />
+                </tree>
+            </field>
+        </record>
+
+        <record id="size_variants_action" model="ir.actions.act_window">
+            <field name="name">Sizes</field>
+            <field name="res_model">size.variants</field>
+            <field name="view_type">form</field>
+            <field name="view_mode">tree,form</field>
+        </record>
 
 
-		<menuitem id="branding_price_menu" name="Branding Price" action="branding_price_action" parent="product_branding_menu" sequence="3"/>
 
-		<menuitem id="color_variants_menu" name="Colours" action="color_variants_action" parent="product_branding_menu" sequence="4"/>
+        <menuitem id="product_branding_menu" parent="sales_team.menu_sale_config"
+            name="Branding" sequence="8" groups="sales_team.group_sale_manager" />
 
-		<menuitem id="size_variants_menu" name="Sizes" action="size_variants_action" parent="product_branding_menu" sequence="5"/>
+        <menuitem id="branding_method_menu" name="Branding Method"
+            action="branding_method_action" parent="product_branding_menu"
+            sequence="0" />
 
-	</data>
+        <menuitem id="branding_location_menu" name="Branding Location"
+            action="branding_location_action" parent="product_branding_menu"
+            sequence="1" />
+
+
+        <menuitem id="branding_price_menu" name="Branding Price"
+            action="branding_price_action" parent="product_branding_menu"
+            sequence="3" />
+
+        <menuitem id="color_variants_menu" name="Colours"
+            action="color_variants_action" parent="product_branding_menu"
+            sequence="4" />
+
+        <menuitem id="size_variants_menu" name="Sizes"
+            action="size_variants_action" parent="product_branding_menu"
+            sequence="5" />
+
+    </data>
 </odoo>

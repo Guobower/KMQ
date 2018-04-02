@@ -74,18 +74,26 @@
 		<xpath expr="//button[@name='action_invoice_open']" position="attributes">
 			<attribute name="groups">account.group_account_invoice,kt_kmq.group_account_invoice_inv</attribute>
 		</xpath>
+        <xpath expr="//button[@name='invoice_print'][2]" position="attributes">
+            <attribute name="groups">sales_team.group_sale_manager</attribute>
+        </xpath>
+        <xpath expr="//button[@name='invoice_print'][1]" position="attributes">
+            <attribute name="groups">sales_team.group_sale_manager</attribute>
+        </xpath>
 
 		<field name="payment_term_id" position="after">
 			<field name="associated_project" readonly="1"/>
-			<field name="job_type"/>
-			<field name="artwork_format"/>
-			<field name="pantone"/>
-			<field name="deadline_date"/>
 		</field>
 
 		<xpath expr="//form/sheet/notebook/page[@name='other_info']/group[1]/group[2]/field[@name='name']" position="after">
-                        <field name="created_at_pastel"/>
-                </xpath>
+            <field name="created_at_pastel"/>
+            <field name="invoice_printed"/>
+            <field name="job_type"/>
+            <field name="artwork_format"/>
+            <field name="pantone"/>
+            <field name="deadline_date"/>
+            <field name="sale_id" invisible="1"/>
+        </xpath>
 
 
 <!-- 	        <xpath expr="//button[@name='action_invoice_open']" position="after"> -->
@@ -165,7 +173,16 @@
 
         <menuitem id="menu_lead_import_1" action="action_wizard_lead_import" name="Delete Invoice" parent="sales_team.menu_sales"/>
 
-
+        <record id="view_tax_form_kt_kmq_inh" model="ir.ui.view">
+            <field name="name">account.tax.form.inh</field>
+            <field name="model">account.tax</field>
+            <field name="inherit_id" ref="account.view_tax_form"/>
+            <field name="arch" type="xml">
+                <field name="type_tax_use" position="after">
+                    <field name="pastel_tax_type"/>
+                </field>
+            </field>
+        </record>
 
 
     </data>

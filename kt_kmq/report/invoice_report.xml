@@ -3,6 +3,10 @@
         <!--<xpath expr="//table" position="replace">
                 <table></table>
         </xpath>-->
+        <xpath expr="//div/h2/span" position="before">
+            <span t-if="o.type == 'out_invoice' and (o.state == 'open' or o.state == 'paid') and (on_page == 2)">Copy </span>
+            <span t-if="o.type == 'out_invoice' and (o.state == 'open' or o.state == 'paid')">Tax </span>
+        </xpath>
         <xpath expr="//table" position="replace">
             <table class="table table-condensed" style="width:100%;margin-bottom:-0.1cm;">
                     <thead>
